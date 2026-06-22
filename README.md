@@ -6,7 +6,7 @@ Proyek ini menyediakan **dua metode diskritisasi** — **Finite Difference Metho
 
 ---
 
-## ⚡ Backend Komputasi (CPU / GPU — bisa dipilih)
+## Backend Komputasi (CPU / GPU — bisa dipilih)
 
 Backend bisa **dipilih saat runtime** — di GUI ada panel **"Compute Backend"**
 (radio CPU / GPU), per simulasi (lihat [`src/backend.py`](src/backend.py)):
@@ -29,7 +29,7 @@ FISKOM_BACKEND=cpu  python simulasi.py     # default CPU
 FISKOM_BACKEND=gpu  python simulasi.py     # default GPU
 ```
 Atau pilih dari panel GUI / flag `--backend cpu|gpu|auto` di `render_mp4.py`.
-> ⚠️ **Kinerja**: pada GPU kelas-masuk (mis. GTX 1650 Ti laptop), solver banyak
+> **Kinerja**: pada GPU kelas-masuk (mis. GTX 1650 Ti laptop), solver banyak
 > melakukan peluncuran kernel kecil (loop Poisson), sehingga **CPU multicore
 > (Numba) bisa lebih cepat** daripada GPU. GPU baru unggul pada GPU desktop besar
 > atau grid sangat tinggi. Jalankan `python benchmark.py` untuk mengukur di
@@ -37,7 +37,7 @@ Atau pilih dari panel GUI / flag `--backend cpu|gpu|auto` di `render_mp4.py`.
 
 ---
 
-## 📂 Struktur Repositori
+## Struktur Repositori
 
 ```text
 Fiskom PBL/
@@ -64,7 +64,7 @@ Fiskom PBL/
 
 ---
 
-## 🔬 Teori Singkat
+## Teori Singkat
 
 ### Persamaan Pengatur
 
@@ -100,13 +100,13 @@ $$\frac{\partial T}{\partial t} + (\mathbf{u} \cdot \nabla)T = \alpha \nabla^2 T
 | Aspek | FDM | FVM |
 |:---|:---|:---|
 | Filosofi | Aproksimasi turunan di **titik** | Keseimbangan **fluks** di muka sel |
-| Konservasi lokal | ❌ Tidak dijamin | ✅ Dijamin |
+| Konservasi lokal | Tidak dijamin | Dijamin |
 | Adveksi | Central orde-2 | Blended central/upwind (`adv_blend`) |
 | Stabilitas | Rawan divergen pada cell-Re tinggi | Stabil (porsi upwind meredam) |
 
 ---
 
-## ⚙️ Persyaratan Sistem
+## Persyaratan Sistem
 
 - **Python** versi 3.10 ke atas
 - **Hardware**: GPU NVIDIA **opsional** (akselerasi CuPy). Tanpa GPU → CPU (Numba).
@@ -121,7 +121,7 @@ $$\frac{\partial T}{\partial t} + (\mathbf{u} \cdot \nabla)T = \alpha \nabla^2 T
 
 ---
 
-## 🚀 Cara Menjalankan
+## Cara Menjalankan
 
 ### Aplikasi GUI Desktop (Utama)
 ```bash
@@ -156,7 +156,7 @@ Mengukur throughput solver pada grid 200×80: **steps/detik**, **MLUPS**, dan
 
 ---
 
-## ✨ Fitur
+## Fitur
 
 - **Akselerasi GPU Otomatis**: CuPy (NVIDIA) dengan fallback CPU (Numba) transparan
 - **7 Geometri Penghalang**: Silinder, Elips, Persegi, Belah Ketupat, Heksagon, Segitiga, Pelat — masing-masing dengan **ukuran/scale** (`obs_D`, dengan readout luas) dan **sudut orientasi** (`obs_angle`)
@@ -167,7 +167,7 @@ Mengukur throughput solver pada grid 200×80: **steps/detik**, **MLUPS**, dan
 
 ---
 
-## 📚 Referensi
+## Referensi
 
 1. Y. A. Çengel dan J. M. Cimbala, *Fluid Mechanics: Fundamentals and Applications*, 4th ed., McGraw-Hill, 2018.
 2. J. H. Ferziger, M. Perić, dan R. L. Street, *Computational Methods for Fluid Dynamics*, 4th ed., Springer, 2020.
