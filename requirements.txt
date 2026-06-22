@@ -1,0 +1,20 @@
+# ── Inti (CPU) — wajib ───────────────────────────────────────────────────────
+numpy
+numba                 # engine CPU: @njit(parallel=True) + fallback bila tak ada GPU
+matplotlib
+
+# ── GUI & visualisasi ────────────────────────────────────────────────────────
+pyvista
+pyvistaqt
+PyQt6
+
+# ── Akselerasi GPU (opsional, hanya NVIDIA) ──────────────────────────────────
+# CuPy menyediakan komputasi GPU. Pilih wheel sesuai versi CUDA Anda, mis:
+#   pip install cupy-cuda12x      # untuk CUDA 12.x
+#   pip install cupy-cuda11x      # untuk CUDA 11.x
+# Jika CuPy tidak terpasang / tidak ada GPU NVIDIA, program otomatis
+# fallback ke CPU (Numba) tanpa perubahan kode.
+#
+# (Opsional, untuk jalur hybrid CuPy + Numba @cuda.jit di GPU — perlu toolkit
+#  CUDA lengkap; tanpa ini GPU tetap jalan via CuPy saja):
+#   pip install nvidia-cuda-nvcc-cu12 nvidia-cuda-runtime-cu12
