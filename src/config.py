@@ -1,6 +1,16 @@
 """Parameter simulasi & konstanta fisika (tak-berdimensi)."""
 
+import os
 from dataclasses import dataclass
+
+# folder output selalu di dalam NavierStokes-2D/Hasil (anchor ke lokasi paket, bukan cwd)
+HASIL_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "Hasil")
+
+
+def hasil_path(filename: str) -> str:
+    """Path absolut file output di NavierStokes-2D/Hasil (folder dibuat bila belum ada)."""
+    os.makedirs(HASIL_DIR, exist_ok=True)
+    return os.path.join(HASIL_DIR, filename)
 
 
 @dataclass

@@ -26,6 +26,17 @@ class NavierStokesSolver:
         self.time = 0.0
         self.divergence_error = 0.0
         self.poisson_residual = 0.0
+        
+        # metrik fisika terkini (diupdate saat diagnostik)
+        self.current_CD = 0.0
+        self.current_CL = 0.0
+        self.current_St = 0.0
+        self.current_Nu = 0.0
+        
+        # history untuk ekstraksi data fisika (CL, CD)
+        self.history_CL = []
+        self.history_CD = []
+        self.aero_sample_interval = cfg.plot_every  # interval sampling untuk FFT
 
         dx, dy = cfg.dx, cfg.dy
         self.dx2 = dx * dx
@@ -42,11 +53,6 @@ class NavierStokesSolver:
         else:
             self._adv_u, self._adv_v, self._adv_T = (
                 self.K.advection_u_fvm, self.K.advection_v_fvm, self.K.advection_T_fvm)
-            # hybrid: upwind FVM lewat kernel @cuda.jit Numba di atas array CuPy
-            if self.mode == "gpu" and backend.NUMBA_CUDA:
-                from . import gpu_cuda_kernels as KC
-                self._adv_u, self._adv_v, self._adv_T = (
-                    KC.advection_u_fvm, KC.advection_v_fvm, KC.advection_T_fvm)
 
         if cfg.seed_perturbation:
             self._seed_shedding()
@@ -108,11 +114,13 @@ class NavierStokesSolver:
         K.bc_T(d.T, d.mask_p, nx, ny, cfg.T_inf, cfg.T_obs)
         K.pressure_bc(d.p, nx, ny)
 
+        # aerodinamika TIDAK dihitung di sini (dipindah ke update_diagnostics)
+
         self.step_count += 1
         self.time += dt
 
     def update_diagnostics(self):
-        # max|div u| dan residual Poisson (dipanggil saat butuh saja)
+        """Dipanggil tiap plot_every langkah: divergensi, residual, + metrik fisika."""
         K, xp, cfg, d = self.K, self.xp, self.cfg, self.d
         nx, ny = cfg.nx, cfg.ny
         K.divergence(d.u, d.v, d.div, nx, ny, cfg.dx, cfg.dy)
@@ -124,6 +132,12 @@ class NavierStokesSolver:
                self.coeff * p[1:ny+1, 1:nx+1])
         res = xp.where(d.mask_p[1:ny+1, 1:nx+1], 0.0, lap - d.rhs[1:ny+1, 1:nx+1])
         self.poisson_residual = float(xp.abs(res).max())
+        
+        # metrik fisika (vektorisasi, tetap di device)
+        if cfg.obstacle_type != "none":
+            self.current_CD, self.current_CL = self.compute_aerodynamics()
+            self.current_St = self.compute_strouhal()
+            self.current_Nu = self.compute_nusselt()
 
     # getter selalu kembalikan numpy (untuk GUI/plot)
     def get_vorticity(self):
@@ -144,6 +158,95 @@ class NavierStokesSolver:
 
     def get_obstacle_mask(self):
         return self.d.mask_p_host[1:self.cfg.ny+1, 1:self.cfg.nx+1]
+
+    # --- Metrik Fisika & Export Data ---
+    
+    def compute_aerodynamics(self):
+        """Koefisien seret (CD) & angkat (CL) — vektorisasi penuh, tetap di device."""
+        xp = self.xp
+        ny, nx = self.cfg.ny, self.cfg.nx
+        dx, dy = self.cfg.dx, self.cfg.dy
+        
+        # operasi langsung di device array (CuPy/NumPy), tanpa to_cpu
+        S = self.d.mask_p          # solid mask (bool, device)
+        F = ~S                     # fluid mask
+        pc = self.d.p[1:ny+1, 1:nx+1]  # tekanan interior
+        fc = F[1:ny+1, 1:nx+1]         # fluid interior
+        
+        # gaya tekanan pada obstacle: F = -∮ p·n dS  (n = normal keluar dari obstacle)
+        # sel fluid dengan solid di TIMUR = muka depan/hulu obstacle -> tekan ke +x (drag)
+        Fx = dy * ( (pc * (fc & S[1:ny+1, 2:nx+2])).sum()    # solid di timur  -> +x
+                   -(pc * (fc & S[1:ny+1, 0:nx  ])).sum())   # solid di barat  -> -x
+        Fy = dx * ( (pc * (fc & S[2:ny+2, 1:nx+1])).sum()    # solid di utara  -> +y
+                   -(pc * (fc & S[0:ny,   1:nx+1])).sum())   # solid di selatan-> -y
+        
+        q = 0.5 * self.cfg.rho * self.cfg.U_inf**2 * self.cfg.obs_D
+        CD = float(Fx) / q if q != 0 else 0.0
+        CL = float(Fy) / q if q != 0 else 0.0
+        
+        self.history_CD.append(CD)
+        self.history_CL.append(CL)
+        return CD, CL
+
+    def compute_strouhal(self):
+        """Frekuensi vortex shedding dominan dari riwayat CL via FFT.
+        
+        Interval sampling = dt * aero_sample_interval karena CL hanya
+        dicatat tiap plot_every langkah, bukan tiap langkah.
+        """
+        if len(self.history_CL) < 100:
+            return 0.0
+            
+        CL = np.array(self.history_CL)
+        half = len(CL) // 2
+        CL_steady = CL[half:].copy()
+        CL_steady -= np.mean(CL_steady)
+        
+        fft_vals = np.abs(np.fft.rfft(CL_steady))
+        # interval sampling = dt * jumlah langkah antar-sampel
+        sample_dt = self.dt * self.aero_sample_interval
+        freqs = np.fft.rfftfreq(len(CL_steady), d=sample_dt)
+        
+        # abaikan DC (indeks 0)
+        if len(fft_vals) > 1:
+            idx = np.argmax(fft_vals[1:]) + 1
+        else:
+            return 0.0
+        f_dom = freqs[idx]
+        return f_dom * self.cfg.obs_D / self.cfg.U_inf
+
+    def compute_nusselt(self):
+        """Nusselt rata-rata di permukaan obstacle — vektorisasi penuh."""
+        xp = self.xp
+        ny, nx = self.cfg.ny, self.cfg.nx
+        dx, dy = self.cfg.dx, self.cfg.dy
+        
+        S = self.d.mask_p
+        F = ~S
+        Tc = self.d.T[1:ny+1, 1:nx+1]
+        fc = F[1:ny+1, 1:nx+1]
+        T_obs = self.cfg.T_obs
+        
+        # fluks di masing-masing arah: (T_obs - T_fluid) / (0.5 * dn) * dl
+        # timur/barat: dn=dx, dl=dy;  utara/selatan: dn=dy, dl=dx
+        east  = fc & S[1:ny+1, 2:nx+2]
+        west  = fc & S[1:ny+1, 0:nx]
+        north = fc & S[2:ny+2, 1:nx+1]
+        south = fc & S[0:ny,   1:nx+1]
+        
+        Q_ew = ((T_obs - Tc) * east).sum() / (0.5 * dx) * dy \
+             + ((T_obs - Tc) * west).sum() / (0.5 * dx) * dy
+        Q_ns = ((T_obs - Tc) * north).sum() / (0.5 * dy) * dx \
+             + ((T_obs - Tc) * south).sum() / (0.5 * dy) * dx
+        Q_total = float(Q_ew + Q_ns)
+        
+        A_tot = float(east.sum() + west.sum()) * dy \
+              + float(north.sum() + south.sum()) * dx
+        
+        dT = T_obs - self.cfg.T_inf
+        if A_tot == 0 or dT == 0:
+            return 0.0
+        return (Q_total / A_tot) * self.cfg.obs_D / dT
 
     def reset(self, cfg: SimulationConfig = None):
         if cfg is not None:

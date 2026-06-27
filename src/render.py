@@ -6,7 +6,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from .config import SimulationConfig
+from .config import SimulationConfig, hasil_path
 from .solver import NavierStokesSolver
 
 # gaya per field: getter, colormap, judul, label colorbar, mask obstacle, clim simetris
@@ -73,8 +73,33 @@ class Renderer:
 
         self._ring = None
         self._annot = None
+        self._pbox = None
         self._clim_frozen = None
         self.fig.tight_layout()
+
+    def _param_box(self, solver):
+        # legend parameter di pojok kiri-atas (bentuk, Re, Pr, metode, grid, CD, St)
+        if self._pbox is not None:
+            return
+        cfg = self.cfg
+        cd_hist = getattr(solver, "history_CD", None)
+        if cd_hist and len(cd_hist) > 20:                       # CD rata-rata (paruh kedua)
+            cd = float(np.mean(np.asarray(cd_hist)[len(cd_hist) // 2:]))
+        else:
+            cd = getattr(solver, "current_CD", 0.0) or 0.0
+        st = getattr(solver, "current_St", 0.0) or 0.0
+        lines = [f"Bentuk : {cfg.obstacle_type}",
+                 f"Re = {cfg.Re:g}    Pr = {cfg.Pr:g}",
+                 f"metode = {cfg.method.upper()}   grid = {cfg.nx} x {cfg.ny}",
+                 f"U = {cfg.U_inf:g}   D = {cfg.obs_D:g}",
+                 f"CD_avg = {cd:+.3f}   St = {st:.3f}"]
+        ron = getattr(solver, "re_onset", None)
+        if ron:
+            lines.append(f"Re onset shedding ~ {ron:g}")
+        self._pbox = self.ax.text(
+            0.012, 0.97, "\n".join(lines), transform=self.ax.transAxes,
+            color=_FG, fontsize=8.5, va="top", ha="left", family="monospace",
+            bbox=dict(boxstyle="round,pad=0.4", fc="#000000", ec=_RING, alpha=0.6))
 
     def _overlay(self, mask):
         # cincin tepi obstacle + anotasi (sekali)
@@ -109,6 +134,7 @@ class Renderer:
             data[mask] = np.nan
         self.im.set_data(data)
         self._overlay(mask)
+        self._param_box(solver)
 
         self.fig.canvas.draw()
         rgb = np.asarray(self.fig.canvas.buffer_rgba())[:, :, :3].copy()
@@ -122,12 +148,17 @@ class Renderer:
         plt.close(self.fig)
 
 
-def render_png(cfg, field="temperature", warmup=4000, out_path="Hasil/snapshot.png",
+def render_png(cfg, field="temperature", warmup=4000, out_path=None,
                interpolation="bilinear", annotate=True, progress=None, mode=None):
+    out_path = out_path or hasil_path(f"snapshot_{field}.png")
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     solver = NavierStokesSolver(cfg, mode)
+    solver.aero_sample_interval = 1                 # sampel tiap langkah -> St akurat
+    sample_aero = cfg.obstacle_type != "none"
     for k in range(warmup):
         solver.step()
+        if sample_aero:
+            solver.compute_aerodynamics()           # isi riwayat CL utk FFT Strouhal
         if progress and k % 200 == 0:
             progress(k / warmup)
     solver.update_diagnostics()
@@ -138,11 +169,12 @@ def render_png(cfg, field="temperature", warmup=4000, out_path="Hasil/snapshot.p
     return out_path
 
 
-def render_mp4(cfg, field="temperature", out_path="Hasil/animasi.mp4",
+def render_mp4(cfg, field="temperature", out_path=None,
                n_frames=300, frame_every=20, warmup=3000, fps=30,
                interpolation="bilinear", annotate=True, progress=None, mode=None):
     # total langkah = warmup + n_frames*frame_every; di-cache lalu diputar pada fps
     import imageio.v2 as imageio
+    out_path = out_path or hasil_path(f"animasi_{field}.mp4")
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     solver = NavierStokesSolver(cfg, mode)
 
