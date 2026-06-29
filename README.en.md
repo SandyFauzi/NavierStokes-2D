@@ -43,8 +43,8 @@ CuPy supports NVIDIA GPUs only, not Intel or AMD integrated graphics. If no NVID
 You can force the default backend with an environment variable:
 
 ```bash
-FISKOM_BACKEND=cpu python simulasi.py
-FISKOM_BACKEND=gpu python simulasi.py
+FISKOM_BACKEND=cpu python main.py
+FISKOM_BACKEND=gpu python main.py
 ```
 
 ## Performance note
@@ -54,7 +54,7 @@ The GPU is not always faster than the CPU. On small grids the whole working set 
 To measure on your own machine:
 
 ```bash
-python Pengujian/benchmark.py
+python tests/benchmark.py
 ```
 
 ## Project structure
@@ -64,7 +64,7 @@ NavierStokes-2D/
 ├── README.md                  # documentation (Bahasa Indonesia)
 ├── README.en.md               # documentation (English)
 ├── requirements.txt           # Python dependencies
-├── simulasi.py                # entry point: opens the GUI application
+├── main.py                # entry point: opens the GUI application
 ├── src/                       # core program code
 │   ├── config.py              # simulation and physics parameters
 │   ├── backend.py             # CPU/GPU backend detection and selection
@@ -74,18 +74,18 @@ NavierStokes-2D/
 │   ├── solver.py              # time stepping (Chorin projection), CD/CL/Strouhal/Nusselt
 │   ├── render.py              # image and video renderer (matplotlib)
 │   └── gui.py                 # desktop interface (PyQt6 + PyVista)
-├── Pengujian/                 # physics and performance validation scripts
+├── tests/                 # physics and performance validation scripts
 │   ├── benchmark.py           # throughput and FPS, CPU vs GPU
-│   ├── validasi_poiseuille.py # check against the analytic Poiseuille solution
-│   ├── uji_konservasi.py      # mass conservation and temperature positivity
-│   ├── uji_konvergensi.py     # grid convergence (order of accuracy)
-│   └── uji_stabilitas.py      # Courant and Fourier numbers
-└── Utilitas/                  # output production tools
+│   ├── validate_poiseuille.py # check against the analytic Poiseuille solution
+│   ├── test_conservation.py      # mass conservation and temperature positivity
+│   ├── test_convergence.py     # grid convergence (order of accuracy)
+│   └── test_stability.py      # Courant and Fourier numbers
+└── utils/                  # output production tools
     ├── batch_plot.py          # automatic PNG export for several geometries
     └── render_mp4.py          # render an MP4 animation from the command line
 ```
 
-All output (PNG, MP4) is saved to the `Hasil/` folder inside this directory.
+All output (PNG, MP4) is saved to the `results/` folder inside this directory.
 
 ## Requirements
 
@@ -109,7 +109,7 @@ pip install cupy-cuda12x      # for CUDA 12.x
 The GUI application (main):
 
 ```bash
-python simulasi.py
+python main.py
 ```
 
 A desktop window opens. Set the geometry, Reynolds number, grid resolution, method, and backend in the left panel, then press Start.
@@ -117,19 +117,19 @@ A desktop window opens. Set the geometry, Reynolds number, grid resolution, meth
 Render an MP4 animation from the command line:
 
 ```bash
-python Utilitas/render_mp4.py --field temperature --re 150
+python utils/render_mp4.py --field temperature --re 150
 ```
 
 Export a set of PNG images for several geometries:
 
 ```bash
-python Utilitas/batch_plot.py
+python utils/batch_plot.py
 ```
 
 Run a test (stability example):
 
 ```bash
-python Pengujian/uji_stabilitas.py
+python tests/test_stability.py
 ```
 
 ## Background
@@ -214,12 +214,12 @@ FVM blends the central scheme (low numerical diffusion) with a small amount of u
 
 ## Testing and validation
 
-Scripts in the `Pengujian/` folder:
+Scripts in the `tests/` folder:
 
-- `validasi_poiseuille.py` compares the numerical velocity profile against the analytic Poiseuille channel solution.
-- `uji_konservasi.py` checks velocity divergence (mass conservation) and temperature bounds (maximum principle).
-- `uji_konvergensi.py` measures error against grid resolution to estimate the order of accuracy.
-- `uji_stabilitas.py` reports the Courant and Fourier numbers and tracks divergence over time.
+- `validate_poiseuille.py` compares the numerical velocity profile against the analytic Poiseuille channel solution.
+- `test_conservation.py` checks velocity divergence (mass conservation) and temperature bounds (maximum principle).
+- `test_convergence.py` measures error against grid resolution to estimate the order of accuracy.
+- `test_stability.py` reports the Courant and Fourier numbers and tracks divergence over time.
 - `benchmark.py` measures throughput (steps per second, MLUPS) for CPU and GPU across several grid sizes.
 
 ## References

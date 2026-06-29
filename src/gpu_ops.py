@@ -1,14 +1,12 @@
-"""Kernel CFD untuk GPU via operasi array CuPy. Tanda tangan = kernels (CPU).
+# kernel cfd gpu (cupy)
+# signature argumen setara cpu (numba)
+# grid selang seling dengan sel halo
 
-Grid berselang-seling (halo 1 sel):
-    u   (ny+2, nx+1)   v   (ny+1, nx+2)   p,T (ny+2, nx+2)
-"""
+from .backend import cp           # modul cupy
+xp = cp                           # mapping numpy ke cupy
 
-from .backend import cp           # modul ini hanya dipakai pada mode GPU
-xp = cp                           # operasi array memakai cupy
-
-# --- Fused Kernels CuPy ---
-# Menghindari overhead pembuatan temporary array berlebih
+# elementwise kernel cupy
+# penggabungan array untuk meminimalisasi alokasi memori
 _diff_kern = cp.ElementwiseKernel(
     'T C, T E, T W, T N, T S, T nu, T idx2, T idy2', 'T D',
     'D = nu * ((E - 2.0*C + W) * idx2 + (N - 2.0*C + S) * idy2)', 'diff_kern'
@@ -71,7 +69,7 @@ _adv_T_fvm_kern = cp.ElementwiseKernel(
     ''', 'adv_T_fvm_kern'
 )
 
-# RawKernel Poisson: 1 sweep Jacobi + BC Neumann (clamp indeks) + mask, satu launch.
+# rawkernel poisson: sapuan jacobi, kondisi batas neumann, dan mask dalam sekali launch
 _JACOBI_SRC = r'''
 extern "C" __global__
 void jacobi(const REAL* p, REAL* pn, const REAL* rhs,
@@ -82,7 +80,7 @@ void jacobi(const REAL* p, REAL* pn, const REAL* rhs,
     if (i > nx || j > ny) return;
     int W = nx + 2, idx = j * W + i;
     if (mask[idx]) { pn[idx] = 0; return; }
-    int ie = (i < nx) ? i + 1 : i;     // clamp = Neumann
+    int ie = (i < nx) ? i + 1 : i;     // clamp indeks untuk syarat Neumann
     int iw = (i > 1)  ? i - 1 : i;
     int jn = (j < ny) ? j + 1 : j;
     int js = (j > 1)  ? j - 1 : j;
@@ -112,7 +110,7 @@ def poisson_solve(p, p_new, rhs, mask_p, nx, ny, dx2, dy2, coeff, n_iter):
     pressure_bc(a, nx, ny)
     return a, b
 
-# --- Adveksi FDM (central) ---
+# adveksi fdm (beda pusat)
 def advection_u_fdm(u, v, Hu, nx, ny, dx, dy, b=0.0):
     C, E, W = u[1:ny+1, 1:nx], u[1:ny+1, 2:nx+1], u[1:ny+1, 0:nx-1]
     N, S = u[2:ny+2, 1:nx], u[0:ny, 1:nx]
@@ -125,7 +123,7 @@ def advection_v_fdm(u, v, Hv, nx, ny, dx, dy, b=0.0):
     u_int = 0.25 * (u[1:ny, 0:nx] + u[1:ny, 1:nx+1] + u[2:ny+1, 0:nx] + u[2:ny+1, 1:nx+1])
     Hv[1:ny, 1:nx+1] = u_int * (vE - vW) / (2.0 * dx) + vC * (vN - vS) / (2.0 * dy)
 
-# --- Adveksi FVM (blended) ---
+# adveksi fvm (hybrid beda pusat & upwind)
 def advection_u_fvm(u, v, Hu, nx, ny, dx, dy, b):
     rt = u.dtype.type
     vn = 0.5 * (v[1:ny+1, 1:nx] + v[1:ny+1, 2:nx+1])
@@ -148,7 +146,7 @@ def advection_v_fvm(u, v, Hv, nx, ny, dx, dy, b):
         Hv[1:ny, 1:nx+1]
     )
 
-# --- Difusi ---
+# difusi
 def diffusion_u(u, Du, nx, ny, dx, dy, nu):
     rt = u.dtype.type
     _diff_kern(u[1:ny+1, 1:nx], u[1:ny+1, 2:nx+1], u[1:ny+1, 0:nx-1],
@@ -161,7 +159,7 @@ def diffusion_v(v, Dv, nx, ny, dx, dy, nu):
                v[2:ny+1, 1:nx+1], v[0:ny-1, 1:nx+1], rt(nu), rt(1.0/(dx*dx)), rt(1.0/(dy*dy)),
                Dv[1:ny, 1:nx+1])
 
-# --- Kecepatan sementara + koreksi ---
+# kalkulasi & koreksi kecepatan sementara
 def tentative_u(u, Hu, Du, u_star, mask_u, nx, ny, dt):
     sl = (slice(1, ny+1), slice(1, nx))
     _tentative_kern(u[sl], Hu[sl], Du[sl], u.dtype.type(dt), mask_u[sl], u_star[sl])
@@ -178,7 +176,7 @@ def correct_v(v_star, p, v_new, mask_v, nx, ny, dt_rho_dy):
     sl = (slice(1, ny), slice(1, nx+1))
     _correct_kern(v_star[sl], p[2:ny+1, 1:nx+1], p[1:ny, 1:nx+1], v_star.dtype.type(dt_rho_dy), mask_v[sl], v_new[sl])
 
-# --- Divergensi + Poisson ---
+# divergensi dan persamaan Poisson
 def divergence(u, v, div, nx, ny, dx, dy):
     rt = u.dtype.type
     _div_kern(u[1:ny+1, 1:nx+1], u[1:ny+1, 0:nx],
@@ -186,7 +184,7 @@ def divergence(u, v, div, nx, ny, dx, dy):
               rt(dx), rt(dy), div[1:ny+1, 1:nx+1])
 
 def poisson_jacobi(p, p_new, rhs, mask_p, nx, ny, dx2, dy2, coeff):
-    # fallback jika tidak pakai raw kernel (tidak terpakai normalnya)
+    # fallback jacobi bila rawkernel gagal diluncurkan
     val = ((p[1:ny+1, 2:nx+2] + p[1:ny+1, 0:nx]) / dx2 +
            (p[2:ny+2, 1:nx+1] + p[0:ny, 1:nx+1]) / dy2 -
            rhs[1:ny+1, 1:nx+1]) / coeff
@@ -198,7 +196,7 @@ def pressure_bc(p, nx, ny):
     p[0, :] = p[1, :]
     p[ny+1, :] = p[ny, :]
 
-# --- Transport suhu ---
+# transport suhu
 def advection_T_fdm(T, u, v, HT, nx, ny, dx, dy, b=0.0):
     uc = 0.5 * (u[1:ny+1, 0:nx] + u[1:ny+1, 1:nx+1])
     vc = 0.5 * (v[0:ny, 1:nx+1] + v[1:ny+1, 1:nx+1])
@@ -227,7 +225,7 @@ def update_T(T, HT, DT, T_new, mask_p, nx, ny, dt, T_obs):
     rt = T.dtype.type
     _update_T_kern(T[sl], HT[sl], DT[sl], rt(dt), mask_p[sl], rt(T_obs), T_new[sl])
 
-# --- Kondisi batas ---
+# kondisi batas
 def bc_u(u, mask_u, nx, ny, U_inf, noslip):
     u[:, 0] = U_inf
     u[:, nx] = u[:, nx - 1]
@@ -253,7 +251,7 @@ def bc_T(T, mask_p, nx, ny, T_inf, T_obs):
     T[ny+1, :] = T[ny, :]
     T[mask_p] = T_obs
 
-# --- Post-processing ---
+# post-processing
 def compute_vorticity(u, v, omega, nx, ny, dx, dy):
     omega[1:ny+1, 1:nx+1] = ((v[1:ny+1, 2:nx+2] - v[1:ny+1, 1:nx+1]) / dx -
                              (u[2:ny+2, 1:nx+1] - u[1:ny+1, 1:nx+1]) / dy)

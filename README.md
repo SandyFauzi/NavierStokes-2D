@@ -43,8 +43,8 @@ CuPy hanya mendukung GPU NVIDIA, bukan iGPU Intel atau AMD. Bila GPU NVIDIA tida
 Default backend bisa dipaksa lewat environment variable:
 
 ```bash
-FISKOM_BACKEND=cpu python simulasi.py
-FISKOM_BACKEND=gpu python simulasi.py
+FISKOM_BACKEND=cpu python main.py
+FISKOM_BACKEND=gpu python main.py
 ```
 
 ## Catatan performa
@@ -54,7 +54,7 @@ GPU tidak selalu lebih cepat dari CPU. Pada grid kecil, seluruh data muat di cac
 Untuk mengukur di perangkat sendiri:
 
 ```bash
-python Pengujian/benchmark.py
+python tests/benchmark.py
 ```
 
 ## Struktur proyek
@@ -64,7 +64,7 @@ NavierStokes-2D/
 ├── README.md                  # dokumentasi (Bahasa Indonesia)
 ├── README.en.md               # dokumentasi (English)
 ├── requirements.txt           # daftar dependensi Python
-├── simulasi.py                # titik masuk: membuka aplikasi GUI
+├── main.py                # titik masuk: membuka aplikasi GUI
 ├── src/                       # kode inti program
 │   ├── config.py              # parameter simulasi dan fisika
 │   ├── backend.py             # deteksi dan pemilihan backend CPU/GPU
@@ -74,18 +74,18 @@ NavierStokes-2D/
 │   ├── solver.py              # langkah waktu (proyeksi Chorin), CD/CL/Strouhal/Nusselt
 │   ├── render.py              # renderer gambar dan video (matplotlib)
 │   └── gui.py                 # antarmuka desktop (PyQt6 + PyVista)
-├── Pengujian/                 # skrip validasi fisika dan performa
+├── tests/                 # skrip validasi fisika dan performa
 │   ├── benchmark.py           # throughput dan FPS, CPU vs GPU
-│   ├── validasi_poiseuille.py # uji terhadap solusi analitik Poiseuille
-│   ├── uji_konservasi.py      # kekekalan massa dan positivitas suhu
-│   ├── uji_konvergensi.py     # konvergensi grid (orde akurasi)
-│   └── uji_stabilitas.py      # bilangan Courant dan Fourier
-└── Utilitas/                  # alat bantu produksi output
+│   ├── validate_poiseuille.py # uji terhadap solusi analitik Poiseuille
+│   ├── test_conservation.py      # kekekalan massa dan positivitas suhu
+│   ├── test_convergence.py     # konvergensi grid (orde akurasi)
+│   └── test_stability.py      # bilangan Courant dan Fourier
+└── utils/                  # alat bantu produksi output
     ├── batch_plot.py          # ekspor PNG otomatis untuk beberapa geometri
     └── render_mp4.py          # render animasi MP4 dari command line
 ```
 
-Semua output (PNG, MP4) disimpan ke folder `Hasil/` di dalam direktori ini.
+Semua output (PNG, MP4) disimpan ke folder `results/` di dalam direktori ini.
 
 ## Kebutuhan sistem
 
@@ -109,7 +109,7 @@ pip install cupy-cuda12x      # untuk CUDA 12.x
 Aplikasi GUI (utama):
 
 ```bash
-python simulasi.py
+python main.py
 ```
 
 Jendela desktop akan terbuka. Atur geometri, Reynolds, resolusi grid, metode, dan backend di panel kiri, lalu tekan tombol Start.
@@ -117,19 +117,19 @@ Jendela desktop akan terbuka. Atur geometri, Reynolds, resolusi grid, metode, da
 Render animasi MP4 dari command line:
 
 ```bash
-python Utilitas/render_mp4.py --field temperature --re 150
+python utils/render_mp4.py --field temperature --re 150
 ```
 
 Ekspor sekumpulan gambar PNG untuk beberapa geometri:
 
 ```bash
-python Utilitas/batch_plot.py
+python utils/batch_plot.py
 ```
 
 Jalankan pengujian (contoh stabilitas):
 
 ```bash
-python Pengujian/uji_stabilitas.py
+python tests/test_stability.py
 ```
 
 ## Teori singkat
@@ -214,12 +214,12 @@ FVM mencampur skema central (difusi numerik rendah) dengan sedikit upwind (stabi
 
 ## Pengujian dan validasi
 
-Skrip di folder `Pengujian/`:
+Skrip di folder `tests/`:
 
-- `validasi_poiseuille.py` membandingkan profil kecepatan numerik dengan solusi analitik Poiseuille pada saluran.
-- `uji_konservasi.py` memeriksa divergensi kecepatan (kekekalan massa) dan batas suhu (maximum principle).
-- `uji_konvergensi.py` mengukur error terhadap resolusi grid untuk menaksir orde akurasi.
-- `uji_stabilitas.py` melaporkan bilangan Courant dan Fourier serta memantau divergensi sepanjang waktu.
+- `validate_poiseuille.py` membandingkan profil kecepatan numerik dengan solusi analitik Poiseuille pada saluran.
+- `test_conservation.py` memeriksa divergensi kecepatan (kekekalan massa) dan batas suhu (maximum principle).
+- `test_convergence.py` mengukur error terhadap resolusi grid untuk menaksir orde akurasi.
+- `test_stability.py` melaporkan bilangan Courant dan Fourier serta memantau divergensi sepanjang waktu.
 - `benchmark.py` mengukur throughput (langkah/detik, MLUPS) CPU dan GPU pada beberapa ukuran grid.
 
 ## Referensi

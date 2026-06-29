@@ -1,7 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-"""Validasi solver vs solusi analitik Poiseuille (profil kecepatan parabolik)."""
+# validasi solver vs analitik poiseuille
 
 import os
 import numpy as np
@@ -12,14 +12,14 @@ from src import backend
 
 
 def run_poiseuille_validation():
-    # saluran kosong, dinding no-slip, upwind murni (obstacle ditaruh jauh)
+    # setup: saluran kosong, noslip, fvm upwind
     cfg = SimulationConfig(
         Lx=10.0, Ly=2.0, nx=100, ny=40, Re=20.0, U_inf=1.0,
         obstacle_type="cylinder", obs_cx=-999.0, obs_cy=-999.0,
-        obs_D=1.0,                 # nu = U*D/Re; D=1 -> nu=0.05 (cukup kental utk parabolik)
+        obs_D=1.0,                 # set nu=0.05
         method="fvm", n_steps=10000, plot_every=1000, cfl=0.15,
         wall="noslip", adv_blend=0.0, seed_perturbation=False,
-        precision="double",     # validasi pakai fp64 untuk akurasi
+        precision="double",     # komputasi fp64
     )
 
     solver = NavierStokesSolver(cfg)
@@ -29,15 +29,15 @@ def run_poiseuille_validation():
         solver.step()
         if (step + 1) % cfg.plot_every == 0:
             solver.update_diagnostics()
-            print(f"  Step {step+1:>6d} | Max|div u| = {solver.divergence_error:.2e}")
+            print(f"  Step {step+1:>6d} | Max|div u| = {solver.div_err:.2e}")
 
     ny, nx = cfg.ny, cfg.nx
-    u_profile = backend.to_cpu(solver.d.u[1:ny+1, nx // 2])    # kolom di tengah domain
+    u_profile = backend.to_cpu(solver.d.u[1:ny+1, nx // 2])    # u kolom tengah
     y = np.array([(j - 0.5) * cfg.dy for j in range(1, ny + 1)])
 
     H = cfg.Ly
     u_max = np.max(u_profile)
-    u_analytic = 4.0 * u_max / H**2 * y * (H - y)              # parabola Poiseuille
+    u_analytic = 4.0 * u_max / H**2 * y * (H - y)              # parabola eksak
 
     error = np.abs(u_profile - u_analytic)
     max_error = np.max(error)
@@ -63,14 +63,14 @@ def run_poiseuille_validation():
     ax2.set_title(f'Error Absolut (max = {max_error:.4e})', fontweight='bold')
     ax2.grid(True, alpha=0.3)
 
-    plt.suptitle('Validasi: Aliran Poiseuille — Numerik vs Analitik',
+    plt.suptitle('Validasi: Aliran Poiseuille (Numerik vs Analitik)',
                  fontsize=15, fontweight='bold', y=1.02)
     plt.tight_layout()
-    plt.savefig("Hasil/validasi_poiseuille.png", dpi=150, bbox_inches='tight')
+    plt.savefig("results/validate_poiseuille.png", dpi=150, bbox_inches='tight')
     plt.show()
-    print("Plot disimpan ke: Hasil/validasi_poiseuille.png")
+    print("Plot disimpan ke: results/validate_poiseuille.png")
 
 
 if __name__ == "__main__":
-    os.makedirs("Hasil", exist_ok=True)
+    os.makedirs("results", exist_ok=True)
     run_poiseuille_validation()

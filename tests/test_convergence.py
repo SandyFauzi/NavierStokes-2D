@@ -1,9 +1,7 @@
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-"""Uji Konvergensi Grid (Spatial Convergence) untuk Solver Navier-Stokes 2D.
-Menganalisis Error L2 terhadap solusi analitik Poiseuille pada berbagai resolusi grid.
-"""
+# uji konvergensi grid (l2 error vs analitik poiseuille)
 
 import os
 import numpy as np
@@ -13,7 +11,7 @@ from src.solver import NavierStokesSolver
 from src import backend
 
 def run_simulation(nx, ny, method="fvm"):
-    # Pengaturan untuk Poiseuille: saluran kosong
+    # setup poiseuille: saluran kosong
     cfg = SimulationConfig(
         Lx=10.0, Ly=2.0, nx=nx, ny=ny, Re=20.0, U_inf=1.0,
         obstacle_type="none",
@@ -22,8 +20,7 @@ def run_simulation(nx, ny, method="fvm"):
     )
     
     solver = NavierStokesSolver(cfg)
-    # Waktu fisis agar profil kecepatan berkembang penuh secara viskos (H^2 / nu)
-    # H=2.0, nu = U*D/Re = 1*1/20 = 0.05. t_diff = 4 / 0.05 = 80.0
+    # hitung waktu fisis target untuk fully developed flow (h^2/nu)
     T_target = 80.0 
     
     while solver.time < T_target:
@@ -59,18 +56,18 @@ def main():
             print(f"  Grid {nx}x{ny:2d} | dy = {dy:.4f} | L2 Error = {err:.2e}")
         results[method] = (dys, errors)
         
-    # Plot log-log
+    # render plot log
     plt.figure(figsize=(8, 6))
     
     for method in methods:
         dys, errs = results[method]
         plt.loglog(dys, errs, marker='o', label=f'{method.upper()} Error')
         
-        # Hitung orde akurasi rata-rata (slope)
+        # kalkulasi orde akurasi (slope)
         slope, _ = np.polyfit(np.log(dys), np.log(errs), 1)
         print(f"Orde konvergensi {method.upper()}: O(dx^{slope:.2f})")
         
-    # Garis referensi orde 1 dan 2
+    # garis referensi o(dx) dan o(dx^2)
     dys_ref = np.array(results["fvm"][0])
     plt.loglog(dys_ref, dys_ref * (results["fvm"][1][0] / dys_ref[0]), 'k--', label='O(dx) (Orde 1)')
     plt.loglog(dys_ref, dys_ref**2 * (results["fdm"][1][0] / dys_ref[0]**2), 'r--', label='O(dx^2) (Orde 2)')
@@ -81,9 +78,9 @@ def main():
     plt.legend()
     plt.grid(True, which="both", ls="--")
     
-    os.makedirs("Hasil", exist_ok=True)
-    plt.savefig("Hasil/uji_konvergasi.png", dpi=150)
-    print("Plot disimpan ke: Hasil/uji_konvergasi.png")
+    os.makedirs("results", exist_ok=True)
+    plt.savefig("results/test_convergence.png", dpi=150)
+    print("Plot disimpan ke: results/test_convergence.png")
     
 if __name__ == "__main__":
     main()

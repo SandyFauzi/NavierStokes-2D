@@ -1,15 +1,8 @@
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-"""Uji stabilitas numerik solver Navier-Stokes 2D.
-
-Menghitung bilangan tak-berdimensi penentu stabilitas skema eksplisit:
-  - Courant (CFL adveksi)      C   = U*dt/h          (batas < 1)
-  - Difusi (von Neumann, 2D)   d   = nu*dt*(1/dx^2+1/dy^2)   (batas < 0.5)
-  - Difusi termal              d_T = alpha*dt*(1/dx^2+1/dy^2)
-  - Peclet sel (cell Reynolds) Pe  = U*dx/nu
-lalu menjalankan simulasi dan memantau max|div u| serta cek NaN/Inf sepanjang waktu.
-"""
+# uji stabilitas numerik solver
+# metrik: courant (cfl), difusi (von neumann), peclet cell
 
 import numpy as np
 from src.config import SimulationConfig
@@ -17,7 +10,7 @@ from src.solver import NavierStokesSolver
 from src import backend
 
 
-def stability_numbers(cfg):
+def stability_numbers(cfg: SimulationConfig):
     dt = cfg.compute_dt()
     dx, dy = cfg.dx, cfg.dy
     h = min(dx, dy)
@@ -31,7 +24,7 @@ def stability_numbers(cfg):
     }
 
 
-def run_stability(cfg, n_steps=3000):
+def run_stability(cfg: SimulationConfig, n_steps: int = 3000):
     solver = NavierStokesSolver(cfg, "cpu")
     max_div = 0.0
     finite = True
@@ -39,7 +32,7 @@ def run_stability(cfg, n_steps=3000):
         solver.step()
         if (k + 1) % 250 == 0:
             solver.update_diagnostics()
-            max_div = max(max_div, solver.divergence_error)
+            max_div = max(max_div, solver.div_err)
             u = backend.to_cpu(solver.d.u)
             if not np.all(np.isfinite(u)):
                 finite = False
@@ -49,7 +42,7 @@ def run_stability(cfg, n_steps=3000):
 
 def main():
     print("=" * 64)
-    print("  UJI STABILITAS NUMERIK — Navier-Stokes 2D")
+    print("  UJI STABILITAS NUMERIK : Navier-Stokes 2D")
     print("=" * 64)
     cases = [
         ("Re=150 (default GUI)", SimulationConfig(nx=300, ny=120, Re=150.0)),

@@ -1,13 +1,12 @@
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-"""Render animasi/snapshot bergaya makalah ke MP4/PNG (offline).
-
-Contoh:
-    python render_mp4.py --field temperature --obstacle cylinder --re 150
-    python render_mp4.py --field vorticity --obstacle plate --size 1.5 --angle 30
-    python render_mp4.py --png --field temperature --warmup 8000
-"""
+# render animasi/snapshot ke mp4/png (offline)
+#
+# contoh:
+#   python render_mp4.py --field temperature --obstacle cylinder --re 150
+#   python render_mp4.py --field vorticity --obstacle plate --size 1.5 --angle 30
+#   python render_mp4.py --png --field temperature --warmup 8000
 
 import argparse
 from src.config import SimulationConfig
@@ -50,11 +49,11 @@ def main():
         print(f"\r  progress: {f*100:5.1f}%", end="", flush=True)
 
     if args.png:
-        out = args.out or f"Hasil/{args.obstacle}_{args.field}_Re{int(args.re)}.png"
+        out = args.out or f"results/{args.obstacle}_{args.field}_Re{int(args.re)}.png"
         path = render.render_png(cfg, field=args.field, warmup=args.warmup,
                                  out_path=out, progress=prog, mode=mode)
     else:
-        out = args.out or f"Hasil/{args.obstacle}_{args.field}_Re{int(args.re)}.mp4"
+        out = args.out or f"results/{args.obstacle}_{args.field}_Re{int(args.re)}.mp4"
         path = render.render_mp4(cfg, field=args.field, out_path=out,
                                  n_frames=args.frames, frame_every=args.frame_every,
                                  warmup=args.warmup, fps=args.fps, progress=prog, mode=mode)

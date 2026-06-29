@@ -1,4 +1,5 @@
-"""Solver Navier-Stokes 2D — metode proyeksi Chorin. Backend cpu/gpu per-instance."""
+# solver navier-stokes chorin projection
+# backend execution mode
 
 import numpy as np
 from .config import SimulationConfig
@@ -11,54 +12,53 @@ class NavierStokesSolver:
         self.cfg = cfg
         self.mode = mode or backend.default_mode()
         if self.mode == "gpu" and not backend.GPU_PRESENT:
-            self.mode = "cpu"                      # fallback
+            self.mode = "cpu"                      # cpu fallback
 
         if self.mode == "gpu":
-            from . import gpu_ops as engine        # operasi array CuPy
+            from . import gpu_ops as engine        # module cupy
         else:
-            engine = kernels                       # kernel Numba @njit
+            engine = kernels                       # module numba njit
         self.K = engine
         self.xp = backend.array_module(self.mode)
 
-        self.d = FieldArrays(cfg, self.xp)
+        self.d  = FieldArrays(cfg, self.xp)
         self.dt = cfg.compute_dt()
         self.step_count = 0
-        self.time = 0.0
-        self.divergence_error = 0.0
-        self.poisson_residual = 0.0
-        
-        # metrik fisika terkini (diupdate saat diagnostik)
+        self.time    = 0.0
+        self.div_err = 0.0
+        self.p_resid = 0.0
+
+        # metrik fisika saat ini
         self.current_CD = 0.0
         self.current_CL = 0.0
         self.current_St = 0.0
         self.current_Nu = 0.0
         
-        # history untuk ekstraksi data fisika (CL, CD)
+        # array riwayat cl cd
         self.history_CL = []
         self.history_CD = []
-        self.aero_sample_interval = cfg.plot_every  # interval sampling untuk FFT
+        self.aero_sample_interval = cfg.plot_every  # interval fft cl
 
-        dx, dy = cfg.dx, cfg.dy
-        self.dx2 = dx * dx
-        self.dy2 = dy * dy
+        dx, dy   = cfg.dx, cfg.dy
+        self.dx2   = dx * dx
+        self.dy2   = dy * dy
         self.coeff = 2.0 * (1.0 / self.dx2 + 1.0 / self.dy2)
 
-        self.b = cfg.adv_blend
-        self.noslip = (cfg.wall == "noslip")
+        self.b      = cfg.adv_blend
+        self.noslip = cfg.wall == "noslip"
 
-        # pilih implementasi suku adveksi
+        # fungsi adveksi
         if cfg.method == "fdm":
-            self._adv_u, self._adv_v, self._adv_T = (
-                self.K.advection_u_fdm, self.K.advection_v_fdm, self.K.advection_T_fdm)
+            self._adv_u, self._adv_v, self._adv_T = \
+                self.K.advection_u_fdm, self.K.advection_v_fdm, self.K.advection_T_fdm
         else:
-            self._adv_u, self._adv_v, self._adv_T = (
-                self.K.advection_u_fvm, self.K.advection_v_fvm, self.K.advection_T_fvm)
+            self._adv_u, self._adv_v, self._adv_T = \
+                self.K.advection_u_fvm, self.K.advection_v_fvm, self.K.advection_T_fvm
 
-        if cfg.seed_perturbation:
-            self._seed_shedding()
+        if cfg.seed_perturbation: self._seed_shedding()
 
     def _seed_shedding(self):
-        # perturbasi-v kecil asimetris di belakang penghalang -> memicu shedding
+        # trigger vortex shedding
         cfg = self.cfg
         j = int(cfg.obs_cy / cfg.dy)
         i0 = int((cfg.obs_cx + cfg.obs_D) / cfg.dx)
@@ -72,22 +72,22 @@ class NavierStokesSolver:
         nx, ny = cfg.nx, cfg.ny
         dx, dy = cfg.dx, cfg.dy
 
-        # adveksi + difusi
+        # adveksi dan difusi
         self._adv_u(d.u, d.v, d.Hu, nx, ny, dx, dy, self.b)
         self._adv_v(d.u, d.v, d.Hv, nx, ny, dx, dy, self.b)
         K.diffusion_u(d.u, d.Du, nx, ny, dx, dy, cfg.nu)
         K.diffusion_v(d.v, d.Dv, nx, ny, dx, dy, cfg.nu)
 
-        # kecepatan sementara (abaikan tekanan)
+        # hitung kecepatan sementara
         K.tentative_u(d.u, d.Hu, d.Du, d.u_star, d.mask_u, nx, ny, dt)
         K.tentative_v(d.v, d.Hv, d.Dv, d.v_star, d.mask_v, nx, ny, dt)
         K.bc_u(d.u_star, d.mask_u, nx, ny, cfg.U_inf, self.noslip)
         K.bc_v(d.v_star, d.mask_v, nx, ny)
 
-        # Poisson tekanan
+        # hitung tekanan poisson
         K.divergence(d.u_star, d.v_star, d.div, nx, ny, dx, dy)
         d.rhs[1:ny+1, 1:nx+1] = (cfg.rho / dt) * d.div[1:ny+1, 1:nx+1]
-        if hasattr(K, "poisson_solve"):           # GPU: loop di RawKernel
+        if hasattr(K, "poisson_solve"):           # eksekusi rawkernel di gpu
             d.p, d.p_new = K.poisson_solve(d.p, d.p_new, d.rhs, d.mask_p,
                                            nx, ny, self.dx2, self.dy2, self.coeff,
                                            cfg.poisson_max_iter)
@@ -98,102 +98,92 @@ class NavierStokesSolver:
                 K.pressure_bc(d.p_new, nx, ny)
                 d.p, d.p_new = d.p_new, d.p
 
-        # koreksi kecepatan (proyeksi)
+        # koreksi kecepatan
         K.correct_u(d.u_star, d.p, d.u, d.mask_u, nx, ny, dt / (cfg.rho * dx))
         K.correct_v(d.v_star, d.p, d.v, d.mask_v, nx, ny, dt / (cfg.rho * dy))
 
-        # transport suhu
+        # update suhu
         self._adv_T(d.T, d.u, d.v, d.HT, nx, ny, dx, dy, self.b)
         K.diffusion_scalar(d.T, d.DT, nx, ny, dx, dy, cfg.alpha)
         K.update_T(d.T, d.HT, d.DT, d.T_new, d.mask_p, nx, ny, dt, cfg.T_obs)
         d.T, d.T_new = d.T_new, d.T
 
-        # kondisi batas
+        # set kondisi batas
         K.bc_u(d.u, d.mask_u, nx, ny, cfg.U_inf, self.noslip)
         K.bc_v(d.v, d.mask_v, nx, ny)
         K.bc_T(d.T, d.mask_p, nx, ny, cfg.T_inf, cfg.T_obs)
         K.pressure_bc(d.p, nx, ny)
 
-        # aerodinamika TIDAK dihitung di sini (dipindah ke update_diagnostics)
+        # aerodinamika dihitung terpisah di update_diagnostics
 
         self.step_count += 1
         self.time += dt
 
     def update_diagnostics(self):
-        """Dipanggil tiap plot_every langkah: divergensi, residual, + metrik fisika."""
+        # hitung divergensi, residual poisson, dan metrik fisika
         K, xp, cfg, d = self.K, self.xp, self.cfg, self.d
         nx, ny = cfg.nx, cfg.ny
         K.divergence(d.u, d.v, d.div, nx, ny, cfg.dx, cfg.dy)
-        self.divergence_error = float(xp.abs(d.div[1:ny+1, 1:nx+1]).max())
+        self.div_err = float(xp.abs(d.div[1:ny+1, 1:nx+1]).max())
 
         p = d.p
         lap = ((p[1:ny+1, 2:nx+2] + p[1:ny+1, 0:nx]) / self.dx2 +
                (p[2:ny+2, 1:nx+1] + p[0:ny, 1:nx+1]) / self.dy2 -
                self.coeff * p[1:ny+1, 1:nx+1])
         res = xp.where(d.mask_p[1:ny+1, 1:nx+1], 0.0, lap - d.rhs[1:ny+1, 1:nx+1])
-        self.poisson_residual = float(xp.abs(res).max())
+        self.p_resid = float(xp.abs(res).max())
         
-        # metrik fisika (vektorisasi, tetap di device)
+        # komputasi metrik fisika di device
         if cfg.obstacle_type != "none":
             self.current_CD, self.current_CL = self.compute_aerodynamics()
             self.current_St = self.compute_strouhal()
             self.current_Nu = self.compute_nusselt()
 
-    # getter selalu kembalikan numpy (untuk GUI/plot)
+    # numpy array getter untuk gui
     def get_vorticity(self):
         cfg = self.cfg
         self.K.compute_vorticity(self.d.u, self.d.v, self.d.omega, cfg.nx, cfg.ny, cfg.dx, cfg.dy)
         return backend.to_cpu(self.d.omega[1:cfg.ny+1, 1:cfg.nx+1])
 
-    def get_temperature(self):
-        return backend.to_cpu(self.d.T[1:self.cfg.ny+1, 1:self.cfg.nx+1])
+    def get_temperature(self):  return backend.to_cpu(self.d.T[1:self.cfg.ny+1, 1:self.cfg.nx+1])
+    def get_pressure(self):     return backend.to_cpu(self.d.p[1:self.cfg.ny+1, 1:self.cfg.nx+1])
+    def get_obstacle_mask(self): return self.d.mask_p_host[1:self.cfg.ny+1, 1:self.cfg.nx+1]
 
     def get_velocity_magnitude(self):
         cfg = self.cfg
         self.K.compute_velocity_mag(self.d.u, self.d.v, self.d.vel_mag, cfg.nx, cfg.ny)
         return backend.to_cpu(self.d.vel_mag[1:cfg.ny+1, 1:cfg.nx+1])
 
-    def get_pressure(self):
-        return backend.to_cpu(self.d.p[1:self.cfg.ny+1, 1:self.cfg.nx+1])
+    # metrik fisika
 
-    def get_obstacle_mask(self):
-        return self.d.mask_p_host[1:self.cfg.ny+1, 1:self.cfg.nx+1]
-
-    # --- Metrik Fisika & Export Data ---
-    
     def compute_aerodynamics(self):
-        """Koefisien seret (CD) & angkat (CL) — vektorisasi penuh, tetap di device."""
+        # hitung koefisien cd dan cl
         xp = self.xp
         ny, nx = self.cfg.ny, self.cfg.nx
         dx, dy = self.cfg.dx, self.cfg.dy
-        
-        # operasi langsung di device array (CuPy/NumPy), tanpa to_cpu
-        S = self.d.mask_p          # solid mask (bool, device)
-        F = ~S                     # fluid mask
-        pc = self.d.p[1:ny+1, 1:nx+1]  # tekanan interior
-        fc = F[1:ny+1, 1:nx+1]         # fluid interior
-        
-        # gaya tekanan pada obstacle: F = -∮ p·n dS  (n = normal keluar dari obstacle)
-        # sel fluid dengan solid di TIMUR = muka depan/hulu obstacle -> tekan ke +x (drag)
-        Fx = dy * ( (pc * (fc & S[1:ny+1, 2:nx+2])).sum()    # solid di timur  -> +x
-                   -(pc * (fc & S[1:ny+1, 0:nx  ])).sum())   # solid di barat  -> -x
-        Fy = dx * ( (pc * (fc & S[2:ny+2, 1:nx+1])).sum()    # solid di utara  -> +y
-                   -(pc * (fc & S[0:ny,   1:nx+1])).sum())   # solid di selatan-> -y
+
+        # array mask dan tekanan interior
+        S = self.d.mask_p
+        F = ~S
+        pc = self.d.p[1:ny+1, 1:nx+1]
+        fc = F[1:ny+1, 1:nx+1]
+
+        # akumulasi gaya pada muka penghalang
+        Fx = dy * ( (pc * (fc & S[1:ny+1, 2:nx+2])).sum()    # arah timur
+                   -(pc * (fc & S[1:ny+1, 0:nx  ])).sum())   # arah barat
+        Fy = dx * ( (pc * (fc & S[2:ny+2, 1:nx+1])).sum()    # arah utara
+                   -(pc * (fc & S[0:ny,   1:nx+1])).sum())   # arah selatan
         
         q = 0.5 * self.cfg.rho * self.cfg.U_inf**2 * self.cfg.obs_D
-        CD = float(Fx) / q if q != 0 else 0.0
-        CL = float(Fy) / q if q != 0 else 0.0
+        CD = float(Fx) / q if q else 0.0
+        CL = float(Fy) / q if q else 0.0
         
         self.history_CD.append(CD)
         self.history_CL.append(CL)
         return CD, CL
 
     def compute_strouhal(self):
-        """Frekuensi vortex shedding dominan dari riwayat CL via FFT.
-        
-        Interval sampling = dt * aero_sample_interval karena CL hanya
-        dicatat tiap plot_every langkah, bukan tiap langkah.
-        """
+        # fft frekuensi vortex shedding dari cl
         if len(self.history_CL) < 100:
             return 0.0
             
@@ -203,11 +193,11 @@ class NavierStokesSolver:
         CL_steady -= np.mean(CL_steady)
         
         fft_vals = np.abs(np.fft.rfft(CL_steady))
-        # interval sampling = dt * jumlah langkah antar-sampel
+        # time delta per sampel
         sample_dt = self.dt * self.aero_sample_interval
         freqs = np.fft.rfftfreq(len(CL_steady), d=sample_dt)
         
-        # abaikan DC (indeks 0)
+        # abaikan komponen dc (idx 0)
         if len(fft_vals) > 1:
             idx = np.argmax(fft_vals[1:]) + 1
         else:
@@ -216,19 +206,18 @@ class NavierStokesSolver:
         return f_dom * self.cfg.obs_D / self.cfg.U_inf
 
     def compute_nusselt(self):
-        """Nusselt rata-rata di permukaan obstacle — vektorisasi penuh."""
+        # vektorisasi perhitungan nusselt number
         xp = self.xp
         ny, nx = self.cfg.ny, self.cfg.nx
         dx, dy = self.cfg.dx, self.cfg.dy
-        
+
         S = self.d.mask_p
         F = ~S
         Tc = self.d.T[1:ny+1, 1:nx+1]
         fc = F[1:ny+1, 1:nx+1]
         T_obs = self.cfg.T_obs
-        
-        # fluks di masing-masing arah: (T_obs - T_fluid) / (0.5 * dn) * dl
-        # timur/barat: dn=dx, dl=dy;  utara/selatan: dn=dy, dl=dx
+
+        # akumulasi fluks panas pada antarmuka fluida solid
         east  = fc & S[1:ny+1, 2:nx+2]
         west  = fc & S[1:ny+1, 0:nx]
         north = fc & S[2:ny+2, 1:nx+1]
@@ -249,6 +238,5 @@ class NavierStokesSolver:
         return (Q_total / A_tot) * self.cfg.obs_D / dT
 
     def reset(self, cfg: SimulationConfig = None):
-        if cfg is not None:
-            self.cfg = cfg
+        if cfg: self.cfg = cfg
         self.__init__(self.cfg, self.mode)

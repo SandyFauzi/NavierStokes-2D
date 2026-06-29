@@ -1,21 +1,19 @@
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-"""Batch untuk laporan: cari Re KRITIS (onset vortex shedding) tiap geometri,
-lalu export PNG vortisitas di Re tersebut + legend (Bentuk, Re, CD_avg, St).
-
-Onset dideteksi dari LAJU-TUMBUH osilasi gaya angkat (CL): di atas Re kritis
-amplitudo tumbuh terhadap waktu, di bawahnya meluruh. Ini kriteria fisika yang
-benar (instabilitas linear), dan tak perlu menunggu shedding jenuh.
-
-Segitiga pakai sudut 180 derajat -> sisi tajam (apex) menghadap aliran.
-
-Pakai: python batch_plot.py
-Output: NavierStokes-2D/Hasil/batch_<bentuk>_Re<...>_vorticity.png
-"""
+# batch laporan: cari re kritis (onset vortex shedding) tiap geometri
+# lalu export png vortisitas + legend (bentuk, re, cd_avg, st)
+#
+# onset dideteksi dari laju-tumbuh osilasi cl: di atas re kritis
+# amplitudo tumbuh, di bawahnya meluruh (kriteria instabilitas linear)
+#
+# segitiga pakai sudut 180 -> apex menghadap aliran
+#
+# pakai: python batch_plot.py
+# output: NavierStokes-2D/results/batch_<bentuk>_Re<...>_vorticity.png
 
 import numpy as np
-from src.config import SimulationConfig, hasil_path
+from src.config import SimulationConfig, results_path
 from src.solver import NavierStokesSolver
 from src.render import Renderer
 
@@ -25,7 +23,7 @@ RE_CANDIDATES = [50, 70, 100, 140, 190]
 DOMAIN = dict(Lx=36.0, Ly=12.0, nx=360, ny=120, obs_cx=9.0, obs_cy=6.0)
 
 
-def _make(shape, angle, Re):
+def _make(shape: str, angle: float, Re: float) -> SimulationConfig:
     return SimulationConfig(Re=Re, obstacle_type=shape, obs_angle=angle,
                             obs_D=3.0, method="fvm", adv_blend=0.8, wall="freeslip",
                             seed_perturbation=True, **DOMAIN)
@@ -36,8 +34,8 @@ def _amp(cl):
     return 0.5 * (cl.max() - cl.min()) if len(cl) else 0.0
 
 
-def is_shedding(shape, angle, Re, warm=1500, win=800, gap=3000):
-    """True bila osilasi CL tumbuh (di atas onset) atau sudah jenuh besar."""
+def is_shedding(shape: str, angle: float, Re: float, warm: int = 1500, win: int = 800, gap: int = 3000):
+    # true bila osilasi cl tumbuh (di atas onset) atau sudah jenuh besar
     s = NavierStokesSolver(_make(shape, angle, Re), "cpu")
     s.aero_sample_interval = 1
     for _ in range(warm):                 # lewati transien awal non-modal
@@ -70,7 +68,7 @@ def render_at(shape, angle, render_Re, re_onset):
     for _ in range(8000):                   # biarkan shedding berkembang utk gambar
         s.step(); s.compute_aerodynamics()
     s.update_diagnostics()
-    out = hasil_path(f"batch_{shape}_Re{int(render_Re)}_vorticity.png")
+    out = results_path(f"batch_{shape}_Re{int(render_Re)}_vorticity.png")
     r = Renderer(s.cfg, "vorticity")
     r.draw(s); r.save_png(out); r.close()
     return out

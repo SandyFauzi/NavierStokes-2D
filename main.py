@@ -1,4 +1,4 @@
-"""Entry point GUI."""
+# main entry gui
 
 import sys
 from PyQt6.QtWidgets import QApplication

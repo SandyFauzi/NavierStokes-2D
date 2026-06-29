@@ -1,4 +1,4 @@
-"""GUI desktop (PyQt6 + PyVista): panel parameter + render live + export MP4."""
+# gui desktop (pyqt6 + pyvista)
 
 import time
 import numpy as np
@@ -14,13 +14,13 @@ from PyQt6.QtGui import QFont
 import pyvista as pv
 from pyvistaqt import QtInteractor
 
-from .config import SimulationConfig, HASIL_DIR, hasil_path
+from .config import SimulationConfig, RESULTS_DIR, results_path
 from .solver import NavierStokesSolver
 from . import backend
 
 OBSTACLES = ["Cylinder", "Ellipse", "Square", "Diamond", "Hexagon", "Triangle", "Flat Plate"]
 
-# template grid (label, nx, ny) dari titik-silang benchmark CPU vs GPU
+# template benchmark grid nx ny
 GRID_PRESETS = [
     ("200 x 80   (16k sel, CPU optimal)",   200,  80),
     ("400 x 160  (64k sel)",                400, 160),
@@ -51,7 +51,7 @@ class SimulationWorker(QThread):
         sched_t0, sched_n, cur_tgt = time.perf_counter(), 0, self.target_sps
         while self._running and self.solver.step_count < cfg.n_steps:
             self.solver.step()
-            # throttle kecepatan sim sesuai slider (slow-motion s/d full speed)
+            # fps limiter
             tgt = self.target_sps
             if tgt != cur_tgt:              # slider berubah -> reset jadwal pacing
                 cur_tgt, sched_t0, sched_n = tgt, time.perf_counter(), 0
@@ -67,8 +67,8 @@ class SimulationWorker(QThread):
                 sps = (self.solver.step_count - n_last) / dt if dt > 0 else 0.0
                 t_last, n_last = now, self.solver.step_count
                 self.step_done.emit(self.solver.step_count, self.solver.time,
-                                    self.solver.divergence_error,
-                                    self.solver.poisson_residual, sps,
+                                    self.solver.div_err,
+                                    self.solver.p_resid, sps,
                                     self.solver.current_CD, self.solver.current_CL,
                                     self.solver.current_St, self.solver.current_Nu)
         self.finished.emit()
@@ -78,12 +78,12 @@ class SimulationWorker(QThread):
 
 
 class ExportWorker(QThread):
-    # render MP4 di latar belakang (solver terpisah, matplotlib Agg)
+    # background render mp4
     progress = pyqtSignal(float)
     done = pyqtSignal(str)
     failed = pyqtSignal(str)
 
-    def __init__(self, cfg, field, out_path, n_frames, frame_every, warmup, fps, mode):
+    def __init__(self, cfg: SimulationConfig, field: str, out_path: str, n_frames: int, frame_every: int, warmup: int, fps: int, mode: str):
         super().__init__()
         self.cfg, self.field, self.out_path = cfg, field, out_path
         self.n_frames, self.frame_every = n_frames, frame_every
@@ -124,8 +124,8 @@ class MainWindow(QMainWindow):
         self._stream_actor = None        # actor streamlines (overlay)
         self._stream_counter = 0
 
-        # render dipisah dari simulasi: timer 60 Hz menggambar frame terbaru,
-        # solver melaju bebas di worker thread -> animasi mulus s/d 60 FPS
+        # pisahkan loop simulasi dan render GUI
+        # worker thread simulasi vs timer ui 60 fps
         self._render_timer = QTimer(self)
         self._render_timer.setInterval(16)      # ~60 FPS
         self._render_timer.timeout.connect(self._on_render_tick)
@@ -148,7 +148,7 @@ class MainWindow(QMainWindow):
         splitter.setSizes([300, 1140])
         main_layout.addWidget(splitter)
         self._init_pyvista()
-        self._apply_theme()           # tema final setelah semua widget & plotter ada
+        self._apply_theme()           # terapkan tema akhir
 
     def _build_left_panel(self):
         panel_widget = QWidget()
@@ -224,7 +224,7 @@ class MainWindow(QMainWindow):
 
         grp3 = QGroupBox("Grid Resolution (Template)")
         l3 = QVBoxLayout(grp3)
-        # nx/ny disetir oleh template; dipakai _build_config & _update_area
+        # layout grid sizing
         self.spin_nx = QSpinBox(); self.spin_nx.setRange(10, 99999)
         self.spin_ny = QSpinBox(); self.spin_ny.setRange(10, 99999)
         self.combo_grid = QComboBox()
@@ -333,17 +333,17 @@ class MainWindow(QMainWindow):
         self.btn_reset.clicked.connect(self._on_reset)
         l6.addWidget(self.btn_reset)
         self.btn_export = QPushButton("EXPORT MP4")
-        self.btn_export.setToolTip("Render field terpilih ke Hasil/*.mp4 (30 FPS, latar belakang)")
+        self.btn_export.setToolTip("Render field terpilih ke results/*.mp4 (30 FPS, latar belakang)")
         self.btn_export.clicked.connect(self._on_export)
         l6.addWidget(self.btn_export)
         self.btn_png = QPushButton("EXPORT PNG (frame saat ini)")
-        self.btn_png.setToolTip("Snapshot field saat ini ke Hasil/*.png + legend parameter (klik pas vortex muncul)")
+        self.btn_png.setToolTip("Snapshot field saat ini ke results/*.png + legend parameter (klik pas vortex muncul)")
         self.btn_png.clicked.connect(self._on_export_png)
         l6.addWidget(self.btn_png)
         self.lbl_export = QLabel("")
         self.lbl_export.setWordWrap(True)
         l6.addWidget(self.lbl_export)
-        self.lbl_outdir = QLabel(f"Folder output : {HASIL_DIR}")
+        self.lbl_outdir = QLabel(f"Folder output : {RESULTS_DIR}")
         self.lbl_outdir.setWordWrap(True)
         l6.addWidget(self.lbl_outdir)
         l_vis.addWidget(grp6)
@@ -387,7 +387,7 @@ class MainWindow(QMainWindow):
     def _btn_style(c, ch, text_c="#1e1e2e"):
         return "" # Dihapus agar mengikuti gaya bawaan (Native OS)
 
-    # --- PyVista ---
+    # pyvista
 
     def _init_pyvista(self):
         self.plotter.set_background(getattr(self, "_plot_bg", "#181825"))
@@ -397,7 +397,7 @@ class MainWindow(QMainWindow):
         self._update_preview()
 
     def _update_preview(self):
-        # domain + siluet bentuk (live) sebelum START; update saat ganti bentuk/size/angle/grid
+        # pre-render domain fluid dan mask penghalang
         if getattr(self, "plotter", None) is None or self.solver is not None:
             return
         from .grid import _obstacle_mask
@@ -496,7 +496,7 @@ class MainWindow(QMainWindow):
         if self.solver is not None:
             self._update_pyvista()
 
-    # --- streamlines (mode tampilan) ---
+    # streamlines (mode tampilan)
 
     def _remove_streamlines(self):
         if self._stream_actor is not None:
@@ -535,7 +535,7 @@ class MainWindow(QMainWindow):
             self.lbl_vis.setText(f"streamlines tdk didukung: {e}")
             self.radio_vel.setChecked(True)         # balik ke mode aman
 
-    # --- aksi ---
+    # aksi
 
     def _selected_mode(self):
         return "gpu" if self.radio_gpu.isChecked() else "cpu"
@@ -615,7 +615,7 @@ class MainWindow(QMainWindow):
         self.btn_start.setEnabled(True)
         self.btn_pause.setEnabled(False)
 
-    # --- export MP4 ---
+    # export mp4
 
     def _selected_field_name(self):
         if self.radio_temp.isChecked():
@@ -629,7 +629,7 @@ class MainWindow(QMainWindow):
             return
         cfg = self._build_config()
         field = self._selected_field_name()
-        out = hasil_path(f"{cfg.obstacle_type}_{field}_Re{int(cfg.Re)}.mp4")
+        out = results_path(f"{cfg.obstacle_type}_{field}_Re{int(cfg.Re)}.mp4")
         self.export_worker = ExportWorker(cfg, field, out, n_frames=300,
                                           frame_every=15, warmup=6000, fps=30,
                                           mode=self._selected_mode())
@@ -660,7 +660,7 @@ class MainWindow(QMainWindow):
             from .render import Renderer
             field = self._selected_field_name()
             cfg = self.solver.cfg
-            out = hasil_path(f"{cfg.obstacle_type}_{field}_Re{int(cfg.Re)}_step{self.solver.step_count}.png")
+            out = results_path(f"{cfg.obstacle_type}_{field}_Re{int(cfg.Re)}_step{self.solver.step_count}.png")
             self.solver.update_diagnostics()
             r = Renderer(cfg, field)
             r.draw(self.solver)
@@ -670,7 +670,7 @@ class MainWindow(QMainWindow):
         except Exception as e:
             self.lbl_export.setText(f"PNG gagal: {e}")
 
-    # --- utility ---
+    # utility
 
     def _build_config(self):
         method = "fdm" if self.radio_fdm.isChecked() else "fvm"

@@ -1,4 +1,4 @@
-"""Renderer matplotlib bergaya makalah (offscreen) -> PNG & MP4."""
+# renderer matplotlib offscreen (png & mp4)
 
 import os
 import numpy as np
@@ -6,19 +6,19 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from .config import SimulationConfig, hasil_path
+from .config import SimulationConfig, results_path
 from .solver import NavierStokesSolver
 
 # gaya per field: getter, colormap, judul, label colorbar, mask obstacle, clim simetris
 FIELD_STYLE = {
     "temperature": dict(
         getter="get_temperature", cmap="inferno",
-        title="Distribusi Suhu — panas dari penghalang tersebar mengikuti pola vorteks",
+        title="Distribusi suhu di belakang penghalang",
         cbar="T (ternormalisasi)", label="penghalang panas",
         mask_obstacle=False, symmetric=False, vmin=0.0),
     "vorticity": dict(
         getter="get_vorticity", cmap="RdBu_r",
-        title="Medan Vortisitas ω — Jalanan Vorteks von Kármán",
+        title="Medan vortisitas ω (von Karman vortex street)",
         cbar="ω  (vortisitas)", label="penghalang",
         mask_obstacle=True, symmetric=True, vmin=None),
     "velocity": dict(
@@ -43,8 +43,8 @@ def _clim(data, style):
 
 
 class Renderer:
-    def __init__(self, cfg, field="temperature", figsize=(11, 4.2), dpi=100,
-                 annotate=True, interpolation="bilinear"):
+    def __init__(self, cfg: SimulationConfig, field: str = "temperature", figsize: tuple = (11, 4.2), dpi: int = 100,
+                 annotate: bool = True, interpolation: str = "bilinear"):
         self.cfg = cfg
         self.field = field
         self.style = FIELD_STYLE[field]
@@ -150,7 +150,7 @@ class Renderer:
 
 def render_png(cfg, field="temperature", warmup=4000, out_path=None,
                interpolation="bilinear", annotate=True, progress=None, mode=None):
-    out_path = out_path or hasil_path(f"snapshot_{field}.png")
+    out_path = out_path or results_path(f"snapshot_{field}.png")
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     solver = NavierStokesSolver(cfg, mode)
     solver.aero_sample_interval = 1                 # sampel tiap langkah -> St akurat
@@ -174,7 +174,7 @@ def render_mp4(cfg, field="temperature", out_path=None,
                interpolation="bilinear", annotate=True, progress=None, mode=None):
     # total langkah = warmup + n_frames*frame_every; di-cache lalu diputar pada fps
     import imageio.v2 as imageio
-    out_path = out_path or hasil_path(f"animasi_{field}.mp4")
+    out_path = out_path or results_path(f"animasi_{field}.mp4")
     os.makedirs(os.path.dirname(out_path) or ".", exist_ok=True)
     solver = NavierStokesSolver(cfg, mode)
 

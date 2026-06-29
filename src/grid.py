@@ -1,4 +1,4 @@
-"""Alokasi array medan dan mask penghalang."""
+# alokasi memori array dan mask
 
 import numpy as np
 from .config import SimulationConfig
@@ -10,7 +10,7 @@ def _obstacle_mask(cfg: SimulationConfig) -> np.ndarray:
     jj = np.arange(ny + 2)
     X, Y = np.meshgrid((ii - 0.5) * cfg.dx, (jj - 0.5) * cfg.dy)
 
-    # pindah ke koordinat lokal penghalang lalu putar sesuai obs_angle
+    # rotasi dan geser koordinat mask
     a = np.radians(cfg.obs_angle)
     px, py = X - cfg.obs_cx, Y - cfg.obs_cy
     xr = px * np.cos(a) + py * np.sin(a)
@@ -32,7 +32,7 @@ def _obstacle_mask(cfg: SimulationConfig) -> np.ndarray:
              (np.abs(0.5 * xr + s * yr) <= R) &
              (np.abs(0.5 * xr - s * yr) <= R))
     elif t == "triangle":
-        half = (R - xr) / 2.0          # base di kiri, apex di kanan (hilir)
+        half = (R - xr) / 2.0          # alas di kiri, apex di kanan
         m = (xr >= -R) & (xr <= R) & (np.abs(yr) <= half)
     elif t == "plate":
         th = max(cfg.dx * 2, cfg.obs_D * 0.1)
@@ -40,29 +40,29 @@ def _obstacle_mask(cfg: SimulationConfig) -> np.ndarray:
     else:
         m = np.zeros((ny + 2, nx + 2), dtype=bool)
 
-    m[0, :] = m[ny + 1, :] = False     # jangan tandai sel halo
+    m[0, :] = m[ny + 1, :] = False     # abaikan sel halo
     m[:, 0] = m[:, nx + 1] = False
     return m
 
 
 def obstacle_area(cfg: SimulationConfig) -> float:
-    # luas penghalang (jumlah sel mask * luas sel) dalam satuan D^2
+    # luas penghalang
     return float(_obstacle_mask(cfg).sum()) * cfg.dx * cfg.dy
 
 
 class FieldArrays:
     def __init__(self, cfg: SimulationConfig, xp):
         nx, ny = cfg.nx, cfg.ny
-        dt = getattr(xp, cfg.dtype_str)     # float32 (single) / float64 (double)
+        dt = getattr(xp, cfg.dtype_str)     # float32 atau float64
 
         mp = _obstacle_mask(cfg)
         mu = mp[:, :nx + 1] | mp[:, 1:nx + 2]
         mv = mp[:ny + 1, :] | mp[1:ny + 2, :]
 
-        self.mask_p_host = mp           # versi numpy untuk siluet di GUI/render
-        self.mask_p = xp.asarray(mp)
-        self.mask_u = xp.asarray(mu)
-        self.mask_v = xp.asarray(mv)
+        self.mask_p_host = mp           # array numpy untuk render gui
+        self.mask_p  = xp.asarray(mp)
+        self.mask_u  = xp.asarray(mu)
+        self.mask_v  = xp.asarray(mv)
 
         self.u = xp.full((ny + 2, nx + 1), cfg.U_inf, dtype=dt)
         self.u[self.mask_u] = 0.0
@@ -71,7 +71,7 @@ class FieldArrays:
         self.T = xp.zeros((ny + 2, nx + 2), dtype=dt)
         self.T[self.mask_p] = cfg.T_obs
 
-        # buffer kerja
+        # array alokasi bantu
         self.u_star = xp.zeros_like(self.u)
         self.v_star = xp.zeros_like(self.v)
         self.Hu = xp.zeros_like(self.u)

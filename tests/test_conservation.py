@@ -1,9 +1,8 @@
 import sys, os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-"""Uji Konservasi Massa dan Positivitas Suhu untuk Solver Navier-Stokes 2D.
-Membuktikan divergensi massa mendekati nol dan Skema FVM mematuhi Maximum Principle.
-"""
+# uji konservasi massa & positivitas suhu
+# pastikan divergensi 0 & tidak melanggar batas suhu
 
 import os
 import numpy as np
@@ -12,13 +11,13 @@ from src.config import SimulationConfig
 from src.solver import NavierStokesSolver
 
 def run_positivity_test(method):
-    # Kasus dengan bilangan Peclet sangat tinggi (alpha sangat kecil)
-    # Untuk melihat apakah metode FDM menghasilkan osilasi suhu di luar batas [T_inf, T_obs]
+    # simulasi peclet sangat tinggi
+    # uji osilasi fdm
     cfg = SimulationConfig(
         Lx=15.0, Ly=5.0, nx=150, ny=50, Re=200.0, U_inf=1.0,
         obstacle_type="square", obs_D=1.0,
         method=method, n_steps=1000, plot_every=1000,
-        T_inf=0.0, T_obs=1.0, Pr=100.0  # Prandtl besar = difusi termal kecil (rentan osilasi)
+        T_inf=0.0, T_obs=1.0, Pr=100.0  # pr tinggi = difusi termal kecil
     )
     
     solver = NavierStokesSolver(cfg)
@@ -32,7 +31,7 @@ def run_positivity_test(method):
         if step % 10 == 0:
             solver.update_diagnostics()
             T_field = solver.get_temperature()
-            max_div_history.append(solver.divergence_error)
+            max_div_history.append(solver.div_err)
             T_max_history.append(float(np.max(T_field)))
             T_min_history.append(float(np.min(T_field)))
             
@@ -59,7 +58,7 @@ def main():
         else:
             print(f"  [+] {method.upper()} MEMATUHI kriteria Positivitas.")
             
-    # Plotting
+    # render grafik
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
     
     for method in methods:
@@ -86,9 +85,9 @@ def main():
     ax2.legend()
     
     plt.tight_layout()
-    os.makedirs("Hasil", exist_ok=True)
-    plt.savefig("Hasil/uji_konservasi.png", dpi=150)
-    print("Plot disimpan ke: Hasil/uji_konservasi.png")
+    os.makedirs("results", exist_ok=True)
+    plt.savefig("results/test_conservation.png", dpi=150)
+    print("Plot disimpan ke: results/test_conservation.png")
 
 if __name__ == "__main__":
     main()

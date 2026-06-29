@@ -1,25 +1,22 @@
-"""Deteksi kemampuan backend. Mode (cpu/gpu) dipilih per-solver saat runtime.
-
-    cpu : numpy + kernel Numba @njit
-    gpu : cupy (+ kernel @cuda.jit Numba bila tersedia)
-"""
+# deteksi backend eksekusi
+# cpu = numpy + numba njit
+# gpu = cupy + numba cuda
 
 import os
 import numpy as np
 
-cp = None                  # modul cupy (None bila tak ada GPU)
-GPU_PRESENT = False        # GPU NVIDIA + CuPy bisa komputasi
-NUMBA_CUDA = False         # kernel @cuda.jit Numba bisa dipakai (hybrid)
+cp = None                  # modul cupy
+GPU_PRESENT = False        # flag status gpu
+NUMBA_CUDA = False         # flag numba cuda
 _DEVICE_NAME = "CPU"
 
-# override default: FISKOM_BACKEND=cpu / gpu
+# bisa dipaksa lewat env FISKOM_BACKEND isi cpu atau gpu
 _FORCE = os.environ.get("FISKOM_BACKEND", "").lower()
 
 
 def _enable_numba_cuda():
-    # Numba (env pip) butuh nvvm + libdevice + cudart dalam satu CUDA_HOME.
-    # nvvm/libdevice ada di paket cuda_nvcc, tapi cudart di paket cuda_runtime.
-    # Salin cudart ke cuda_nvcc/bin lalu arahkan CUDA_HOME ke cuda_nvcc.
+    # setup env cuda
+    # bypass deteksi otomatis numba
     try:
         import importlib.util
         import glob
@@ -46,11 +43,11 @@ def _enable_numba_cuda():
         pass
 
 
-# deteksi GPU lewat CuPy
+# init deteksi gpu (cupy)
 try:
     import cupy as _cp
     if _cp.cuda.runtime.getDeviceCount() > 0:
-        _t = _cp.arange(8, dtype=_cp.float32)      # smoke test komputasi nyata
+        _t = _cp.arange(8, dtype=_cp.float32)      # test load gpu
         float((_t * 2).sum())
         _cp.cuda.Stream.null.synchronize()
         cp = _cp
@@ -61,7 +58,7 @@ except Exception:
     cp = None
     GPU_PRESENT = False
 
-# kalau GPU ada, coba aktifkan kernel @cuda.jit Numba (hybrid)
+# init numba cuda
 if GPU_PRESENT:
     _enable_numba_cuda()
     try:
@@ -81,41 +78,35 @@ if GPU_PRESENT:
         NUMBA_CUDA = False
 
 
-def gpu_usable() -> bool:
-    return GPU_PRESENT
+def gpu_usable(): return GPU_PRESENT
 
 
-def default_mode() -> str:
-    if _FORCE == "cpu":
-        return "cpu"
-    if _FORCE == "gpu" and GPU_PRESENT:
-        return "gpu"
+def default_mode():
+    if _FORCE == "cpu":  return "cpu"
+    if _FORCE == "gpu" and GPU_PRESENT: return "gpu"
     return "gpu" if GPU_PRESENT else "cpu"
 
 
-def array_module(mode: str):
-    # modul array untuk alokasi medan
+def array_module(mode):
+    # alokasi memori
     return cp if (mode == "gpu" and GPU_PRESENT) else np
 
 
 def sync():
-    # tunggu kernel GPU selesai (penting untuk timing); no-op bila tak ada GPU
-    if cp is not None:
-        cp.cuda.Stream.null.synchronize()
+    # sync device
+    if cp: cp.cuda.Stream.null.synchronize()
 
 
 def to_cpu(arr):
-    # cupy -> numpy host; numpy -> apa adanya
-    if cp is not None and isinstance(arr, cp.ndarray):
-        return cp.asnumpy(arr)
+    # konversi d2h
+    if cp is not None and isinstance(arr, cp.ndarray): return cp.asnumpy(arr)
     return np.asarray(arr)
 
 
-def device_name() -> str:
-    return _DEVICE_NAME
+def device_name(): return _DEVICE_NAME
 
 
-def backend_label(mode: str) -> str:
+def backend_label(mode):
     if mode == "gpu" and GPU_PRESENT:
         extra = "CuPy + Numba CUDA" if NUMBA_CUDA else "CuPy"
         return f"GPU: {_DEVICE_NAME} ({extra})"

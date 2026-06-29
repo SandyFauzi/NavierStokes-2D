@@ -1,11 +1,12 @@
-"""Kernel CFD untuk CPU (Numba @njit paralel). Tanda tangan = gpu_ops."""
+# kernel cfd cpu (numba njit)
+# signature argumen setara gpu
 
 import math
 import numpy as np
 from numba import njit, prange
 
 
-# --- Adveksi FDM (central) ---
+# adveksi fdm (beda pusat)
 
 @njit(parallel=True)
 def advection_u_fdm(u, v, Hu, nx, ny, dx, dy, b):
@@ -26,7 +27,7 @@ def advection_v_fdm(u, v, Hv, nx, ny, dx, dy, b):
             Hv[j, i] = u_int * dvdx + v[j, i] * dvdy
 
 
-# --- Adveksi FVM (blended: b*central + (1-b)*upwind) ---
+# adveksi fvm (hybrid beda pusat & upwind)
 
 @njit(parallel=True)
 def advection_u_fvm(u, v, Hu, nx, ny, dx, dy, b):
@@ -61,7 +62,7 @@ def advection_v_fvm(u, v, Hv, nx, ny, dx, dy, b):
             Hv[j, i] = ((ue*pe - uw*pw)*dy + (vn*pn - vs*ps)*dx) * inv_vol
 
 
-# --- Difusi ---
+# difusi
 
 @njit(parallel=True)
 def diffusion_u(u, Du, nx, ny, dx, dy, nu):
@@ -82,7 +83,7 @@ def diffusion_v(v, Dv, nx, ny, dx, dy, nu):
                              (v[j+1, i] - 2.0*v[j, i] + v[j-1, i]) * idy2)
 
 
-# --- Kecepatan sementara + koreksi tekanan ---
+# kalkulasi & koreksi kecepatan sementara
 
 @njit(parallel=True)
 def tentative_u(u, Hu, Du, u_star, mask_u, nx, ny, dt):
@@ -109,7 +110,7 @@ def correct_v(v_star, p, v_new, mask_v, nx, ny, dt_rho_dy):
             v_new[j, i] = 0.0 if mask_v[j, i] else v_star[j, i] - dt_rho_dy * (p[j+1, i] - p[j, i])
 
 
-# --- Divergensi + Poisson ---
+# divergensi & persamaan poisson
 
 @njit(parallel=True)
 def divergence(u, v, div, nx, ny, dx, dy):
@@ -137,7 +138,7 @@ def pressure_bc(p, nx, ny):
         p[ny+1, i] = p[ny, i]
 
 
-# --- Transport suhu ---
+# transport suhu
 
 @njit(parallel=True)
 def advection_T_fdm(T, u, v, HT, nx, ny, dx, dy, b):
@@ -178,18 +179,18 @@ def update_T(T, HT, DT, T_new, mask_p, nx, ny, dt, T_obs):
             T_new[j, i] = T_obs if mask_p[j, i] else T[j, i] + dt * (-HT[j, i] + DT[j, i])
 
 
-# --- Kondisi batas ---
+# set kondisi batas
 
 @njit
 def bc_u(u, mask_u, nx, ny, U_inf, noslip):
     for j in range(ny + 2):
-        u[j, 0] = U_inf            # inlet
-        u[j, nx] = u[j, nx - 1]    # outlet (gradien nol)
+        u[j, 0] = U_inf            # bc masuk
+        u[j, nx] = u[j, nx - 1]    # bc keluar gradien nol
     if noslip:
         for i in range(nx + 1):
             u[0, i] = -u[1, i]
             u[ny+1, i] = -u[ny, i]
-    else:                          # free-slip: du/dy = 0
+    else:                          # bc free slip
         for i in range(nx + 1):
             u[0, i] = u[1, i]
             u[ny+1, i] = u[ny, i]
@@ -225,7 +226,7 @@ def bc_T(T, mask_p, nx, ny, T_inf, T_obs):
                 T[j, i] = T_obs
 
 
-# --- Post-processing ---
+# post-processing
 
 @njit(parallel=True)
 def compute_vorticity(u, v, omega, nx, ny, dx, dy):
