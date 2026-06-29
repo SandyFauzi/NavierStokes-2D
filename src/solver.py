@@ -11,7 +11,7 @@ class NavierStokesSolver:
         self.cfg = cfg
         self.mode = mode or backend.default_mode()
         if self.mode == "gpu" and not backend.GPU_PRESENT:
-            self.mode = "cpu"                      # fallback aman
+            self.mode = "cpu"                      # fallback
 
         if self.mode == "gpu":
             from . import gpu_ops as engine        # operasi array CuPy
