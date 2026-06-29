@@ -59,9 +59,9 @@ def main():
             print(f"  [+] {method.upper()} MEMATUHI kriteria Positivitas.")
             
     # render grafik
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
+    fig, axs = plt.subplots(2, 2, figsize=(16, 10))
     
-    for method in methods:
+    for i, method in enumerate(methods):
         divs, t_max, t_min, dt = results[method]
         # Filter NaN or Inf
         valid_idx = np.isfinite(divs) & np.isfinite(t_max) & np.isfinite(t_min)
@@ -71,26 +71,30 @@ def main():
         
         time_axis = np.arange(len(divs)) * dt * 10
         
-        ax1.plot(time_axis, divs, label=f'{method.upper()}')
-        ax2.plot(time_axis, t_max, label=f'{method.upper()} Max T', linestyle='-')
-        ax2.plot(time_axis, t_min, label=f'{method.upper()} Min T', linestyle='--')
+        # Divergence Plot
+        axs[0, i].plot(time_axis, divs, label=f'{method.upper()}', color='C0' if method=='fvm' else 'C1')
+        axs[0, i].set_yscale('log')
+        axs[0, i].set_xlabel('Waktu Simulasi (s)')
+        axs[0, i].set_ylabel('Maksimum Absolut Divergensi')
+        axs[0, i].set_title(f'Uji Konservasi Massa - {method.upper()}')
+        axs[0, i].grid(True)
+        axs[0, i].legend()
         
-    ax1.set_yscale('log')
-    ax1.set_ylim(1e-2, 1e4)  # Limit to see FVM clearly
-    ax1.set_xlabel('Waktu Simulasi (s)')
-    ax1.set_ylabel('Maksimum Absolut Divergensi')
-    ax1.set_title('Uji Konservasi Massa (Divergensi ~ 0)')
-    ax1.grid(True)
-    ax1.legend()
-    
-    ax2.axhline(1.0, color='r', linestyle=':', label='Batas T_obs (1.0)')
-    ax2.axhline(0.0, color='b', linestyle=':', label='Batas T_inf (0.0)')
-    ax2.set_ylim(-0.2, 1.5)  # Limit to see positivity bounds
-    ax2.set_xlabel('Waktu Simulasi (s)')
-    ax2.set_ylabel('Suhu (Min & Max)')
-    ax2.set_title('Uji Positivitas Suhu (Maximum Principle)')
-    ax2.grid(True)
-    ax2.legend()
+        # Positivity Plot
+        axs[1, i].plot(time_axis, t_max, label=f'{method.upper()} Max T', linestyle='-', color='C2' if method=='fvm' else 'C4')
+        axs[1, i].plot(time_axis, t_min, label=f'{method.upper()} Min T', linestyle='--', color='C3' if method=='fvm' else 'C5')
+        axs[1, i].axhline(1.0, color='r', linestyle=':', label='Batas T_obs (1.0)')
+        axs[1, i].axhline(0.0, color='b', linestyle=':', label='Batas T_inf (0.0)')
+        
+        if method == 'fvm':
+            axs[0, i].set_ylim(1e-2, 1e4)
+            axs[1, i].set_ylim(-0.2, 1.5)
+            
+        axs[1, i].set_xlabel('Waktu Simulasi (s)')
+        axs[1, i].set_ylabel('Suhu (Min & Max)')
+        axs[1, i].set_title(f'Uji Positivitas Suhu - {method.upper()}')
+        axs[1, i].grid(True)
+        axs[1, i].legend()
     
     plt.tight_layout()
     os.makedirs("results", exist_ok=True)
