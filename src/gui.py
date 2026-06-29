@@ -459,7 +459,8 @@ class MainWindow(QMainWindow):
             self._actor.mapper.scalar_range = clim
         if getattr(self, "radio_stream", None) is not None and self.radio_stream.isChecked():
             self._stream_counter += 1
-            if self._stream_actor is None or self._stream_counter % 20 == 0:
+            # hitung ulang streamline tiap 30 tick saja biar tidak membebani ui
+            if self._stream_actor is None or self._stream_counter % 30 == 0:
                 self._update_streamlines()
         self.plotter.render()
 
@@ -507,7 +508,7 @@ class MainWindow(QMainWindow):
             self._stream_actor = None
 
     def _update_streamlines(self):
-        # garis aliran di atas latar kecepatan (mode "Streamlines")
+        # garis aliran di atas latar kecepatan, kecepatan di-downsample biar ringan
         if self.solver is None:
             return
         self._remove_streamlines()
@@ -518,15 +519,21 @@ class MainWindow(QMainWindow):
             u = 0.5 * (u + backend.to_cpu(self.solver.d.u[1:ny+1, 0:nx]))
             v = backend.to_cpu(self.solver.d.v[1:ny+1, 1:nx+1])
             v = 0.5 * (v + backend.to_cpu(self.solver.d.v[0:ny, 1:nx+1]))
-            grid = pv.ImageData(dimensions=(nx, ny, 1), spacing=(cfg.dx, cfg.dy, 1.0))
-            vec = np.zeros((nx * ny, 3))
+            # grid kasar maks 160 sel arah x, integrasi streamline jadi murah
+            stride = max(1, nx // 160)
+            u = np.ascontiguousarray(u[::stride, ::stride])
+            v = np.ascontiguousarray(v[::stride, ::stride])
+            cny, cnx = u.shape
+            sx, sy = cfg.dx * stride, cfg.dy * stride
+            grid = pv.ImageData(dimensions=(cnx, cny, 1), spacing=(sx, sy, 1.0))
+            vec = np.zeros((cnx * cny, 3))
             vec[:, 0] = u.ravel(order="C")
             vec[:, 1] = v.ravel(order="C")
             grid["vectors"] = vec
             lines = grid.streamlines_evenly_spaced_2D(
                 vectors="vectors", step_length=0.5,
                 separating_distance=2.0, separating_distance_ratio=0.4,
-                start_position=(cfg.dx, cfg.Ly * 0.5, 0.0))
+                start_position=(sx, cfg.Ly * 0.5, 0.0))
             self._stream_actor = self.plotter.add_mesh(
                 lines, color=getattr(self, "_fg_plot", "white"),
                 line_width=1.2, lighting=False)
@@ -630,8 +637,9 @@ class MainWindow(QMainWindow):
         cfg = self._build_config()
         field = self._selected_field_name()
         out = results_path(f"{cfg.obstacle_type}_{field}_Re{int(cfg.Re)}.mp4")
-        self.export_worker = ExportWorker(cfg, field, out, n_frames=300,
-                                          frame_every=15, warmup=6000, fps=30,
+        # n_frames 600 + fps 30 = 20 detik, frame_every 22 biar vorteks bergerak jelas
+        self.export_worker = ExportWorker(cfg, field, out, n_frames=600,
+                                          frame_every=22, warmup=6000, fps=30,
                                           mode=self._selected_mode())
         self.export_worker.progress.connect(
             lambda f: self.lbl_export.setText(f"export {field}: {f*100:4.0f}%"))

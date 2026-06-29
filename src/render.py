@@ -43,7 +43,7 @@ def _clim(data, style):
 
 
 class Renderer:
-    def __init__(self, cfg: SimulationConfig, field: str = "temperature", figsize: tuple = (11, 4.2), dpi: int = 100,
+    def __init__(self, cfg: SimulationConfig, field: str = "temperature", figsize: tuple = (12.8, 5.0), dpi: int = 150,
                  annotate: bool = True, interpolation: str = "bilinear"):
         self.cfg = cfg
         self.field = field
