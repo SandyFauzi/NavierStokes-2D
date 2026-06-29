@@ -155,10 +155,15 @@ Tiap langkah waktu memakai metode fraksional pada grid staggered (MAC):
 3. Koreksi $\mathbf{u}^{\ast}$ dengan gradien tekanan untuk mendapat $\mathbf{u}^{n+1}$.
 4. Perbarui medan suhu dengan adveksi dan difusi memakai $\mathbf{u}^{n+1}$.
 
-<details>
-<summary>Bentuk diskrit lengkap</summary>
+### Bentuk diskrit lengkap
 
-Prediksi kecepatan (komponen $u$):
+Tiap turunan didekati dengan beda hingga pada grid seragam (spasi $\Delta x$, $\Delta y$, langkah waktu $\Delta t$). Indeks $i$ mengikuti arah $x$ dan $j$ arah $y$.
+
+Kontinuitas (kecepatan akhir bebas divergensi):
+
+$$\frac{u_{i+1,j} - u_{i-1,j}}{2\Delta x} + \frac{v_{i,j+1} - v_{i,j-1}}{2\Delta y} = 0$$
+
+Momentum, prediksi kecepatan (komponen $u$; komponen $v$ analog):
 
 $$u_{i,j}^{\ast} = u_{i,j}^n + \Delta t \left[ -\left( u \frac{u_{i+1,j} - u_{i-1,j}}{2\Delta x} + v \frac{u_{i,j+1} - u_{i,j-1}}{2\Delta y} \right) + \nu \left( \frac{u_{i+1,j} - 2u_{i,j} + u_{i-1,j}}{\Delta x^2} + \frac{u_{i,j+1} - 2u_{i,j} + u_{i,j-1}}{\Delta y^2} \right) \right]$$
 
@@ -170,7 +175,9 @@ Koreksi kecepatan:
 
 $$u_{i,j}^{n+1} = u_{i,j}^{\ast} - \frac{\Delta t}{\rho}\frac{p_{i+1,j} - p_{i-1,j}}{2\Delta x}$$
 
-</details>
+Energi (transpor suhu, memakai $u^{n+1}$ dan $v^{n+1}$):
+
+$$T_{i,j}^{n+1} = T_{i,j}^n + \Delta t \left[ -\left( u \frac{T_{i+1,j} - T_{i-1,j}}{2\Delta x} + v \frac{T_{i,j+1} - T_{i,j-1}}{2\Delta y} \right) + \alpha \left( \frac{T_{i+1,j} - 2T_{i,j} + T_{i-1,j}}{\Delta x^2} + \frac{T_{i,j+1} - 2T_{i,j} + T_{i,j-1}}{\Delta y^2} \right) \right]$$
 
 ### Kestabilan numerik
 

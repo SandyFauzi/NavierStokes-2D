@@ -155,10 +155,15 @@ Each time step uses a fractional-step method on a staggered (MAC) grid:
 3. Correct $\mathbf{u}^{\ast}$ with the pressure gradient to get $\mathbf{u}^{n+1}$.
 4. Update the temperature field by advection and diffusion using $\mathbf{u}^{n+1}$.
 
-<details>
-<summary>Full discrete form</summary>
+### Full discrete form
 
-Velocity prediction ($u$ component):
+Each derivative is approximated by finite differences on a uniform grid (spacing $\Delta x$, $\Delta y$, time step $\Delta t$). Index $i$ runs along $x$ and $j$ along $y$.
+
+Continuity (the final velocity is divergence free):
+
+$$\frac{u_{i+1,j} - u_{i-1,j}}{2\Delta x} + \frac{v_{i,j+1} - v_{i,j-1}}{2\Delta y} = 0$$
+
+Momentum, velocity prediction ($u$ component; the $v$ component is analogous):
 
 $$u_{i,j}^{\ast} = u_{i,j}^n + \Delta t \left[ -\left( u \frac{u_{i+1,j} - u_{i-1,j}}{2\Delta x} + v \frac{u_{i,j+1} - u_{i,j-1}}{2\Delta y} \right) + \nu \left( \frac{u_{i+1,j} - 2u_{i,j} + u_{i-1,j}}{\Delta x^2} + \frac{u_{i,j+1} - 2u_{i,j} + u_{i,j-1}}{\Delta y^2} \right) \right]$$
 
@@ -170,7 +175,9 @@ Velocity correction:
 
 $$u_{i,j}^{n+1} = u_{i,j}^{\ast} - \frac{\Delta t}{\rho}\frac{p_{i+1,j} - p_{i-1,j}}{2\Delta x}$$
 
-</details>
+Energy (temperature transport, using $u^{n+1}$ and $v^{n+1}$):
+
+$$T_{i,j}^{n+1} = T_{i,j}^n + \Delta t \left[ -\left( u \frac{T_{i+1,j} - T_{i-1,j}}{2\Delta x} + v \frac{T_{i,j+1} - T_{i,j-1}}{2\Delta y} \right) + \alpha \left( \frac{T_{i+1,j} - 2T_{i,j} + T_{i-1,j}}{\Delta x^2} + \frac{T_{i,j+1} - 2T_{i,j} + T_{i,j-1}}{\Delta y^2} \right) \right]$$
 
 ### Numerical stability
 
