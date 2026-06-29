@@ -15,7 +15,7 @@
 
 ## Demonstrasi Visual
 
-### Karakteristik Vorticity pada 4 Geometri Wajib
+### Karakteristik Vorticity pada 4 Geometri
 ![Vorticity Cylinder](results/batch_cylinder_Re140_vorticity.png)
 ![Vorticity Square](results/batch_square_Re140_vorticity.png)
 ![Vorticity Triangle](results/batch_triangle_Re140_vorticity.png)

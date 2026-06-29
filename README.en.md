@@ -15,7 +15,7 @@
 
 ## Visual Demonstration
 
-### Vorticity Characteristics across 4 Mandatory Geometries
+### Vorticity Characteristics across 4 Geometries
 ![Vorticity Cylinder](results/batch_cylinder_Re140_vorticity.png)
 ![Vorticity Square](results/batch_square_Re140_vorticity.png)
 ![Vorticity Triangle](results/batch_triangle_Re140_vorticity.png)
