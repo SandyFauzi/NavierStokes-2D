@@ -272,11 +272,13 @@ Menjalankan simulasi FVM...
   FVM - Suhu Terendah : -0.0023 (Seharusnya >= 0.0)
   FVM - Suhu Tertinggi: 1.0000 (Seharusnya <= 1.0)
   [!] FVM MELANGGAR kriteria Positivitas (Maximum Principle).
+```
 
-*(Catatan Fisika: Pelanggaran batas bawah suhu sebesar -0.0023 ini adalah wiggles numerik akibat penggunaan skema adveksi Central-Upwind Blended. Skema ini sengaja dipertahankan agar fenomena Vortex Shedding tetap tajam dan tidak pudar oleh difusi numerik murni).*
+*Penjelasan: Pelanggaran batas bawah suhu sebesar -0.0023 ini adalah wiggles numerik akibat penggunaan skema adveksi Central-Upwind Blended. Skema ini sengaja dipertahankan agar fenomena Vortex Shedding tetap tajam dan tidak pudar oleh difusi numerik murni.*
 
 ![Plot Uji Konservasi](results/test_conservation.png)
 
+```text
 ================================================================
   VALIDASI ANALITIK POISEUILLE
 ================================================================

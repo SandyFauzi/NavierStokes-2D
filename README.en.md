@@ -272,11 +272,13 @@ Menjalankan simulasi FVM...
   FVM - Suhu Terendah : -0.0023 (Seharusnya >= 0.0)
   FVM - Suhu Tertinggi: 1.0000 (Seharusnya <= 1.0)
   [!] FVM MELANGGAR kriteria Positivitas (Maximum Principle).
+```
 
-*(Physics Note: This lower bound violation of -0.0023 is a numerical wiggle resulting from the blended Central-Upwind advection scheme. It is deliberately maintained so that the Vortex Shedding phenomenon remains sharp and is not washed out by pure numerical diffusion).*
+*Explanation: This lower bound violation of -0.0023 is a numerical wiggle resulting from the blended Central-Upwind advection scheme. It is deliberately maintained so that the Vortex Shedding phenomenon remains sharp and is not washed out by pure numerical diffusion.*
 
 ![Conservation Test Plot](results/test_conservation.png)
 
+```text
 ================================================================
   VALIDASI ANALITIK POISEUILLE
 ================================================================
