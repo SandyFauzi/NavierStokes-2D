@@ -1,5 +1,9 @@
 # Kelompok 17
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![CFD: Navier-Stokes](https://img.shields.io/badge/CFD-Navier--Stokes-red.svg)](#)
+
 | Nama | NPM |
 |:--|:--|
 | Sandy Fauzi A | 140310240054 |
@@ -8,6 +12,18 @@
 | Siti Novianti | 140310240002 |
 
 [Bahasa Indonesia](README.md) | [English](README.en.md)
+
+## Demonstrasi Visual
+
+### Vorticity pada Berbagai Geometri
+![Vorticity Batch](results/batch_cylinder_Re140_vorticity.png)
+
+### Simulasi Video (Evolusi Suhu & Kecepatan)
+**Cylinder Temperature (Re=500)**
+<video src="https://github.com/SandyFauzi/NavierStokes-2D/raw/main/results/cylinder_temperature_Re500.mp4" controls width="100%"></video>
+
+**Square Velocity (Re=90)**
+<video src="https://github.com/SandyFauzi/NavierStokes-2D/raw/main/results/square_velocity_Re90.mp4" controls width="100%"></video>
 
 ## Simulasi Vortex Shedding dan Distribusi Panas 2D
 
@@ -221,6 +237,34 @@ Skrip di folder `tests/`:
 - `test_convergence.py` mengukur error terhadap resolusi grid untuk menaksir orde akurasi.
 - `test_stability.py` melaporkan bilangan Courant dan Fourier serta memantau divergensi sepanjang waktu.
 - `benchmark.py` mengukur throughput (langkah/detik, MLUPS) CPU dan GPU pada beberapa ukuran grid.
+
+### Hasil Pengujian (Test Results)
+
+Contoh output pengujian stabilitas numerik dan benchmark CPU vs GPU:
+
+```text
+================================================================
+  UJI STABILITAS NUMERIK : Navier-Stokes 2D
+================================================================
+  [Re=150 (default GUI)]  dt = 0.01667
+    Courant (CFL adveksi) = 0.2000   [OK, batas < 1]
+    Difusi (von Neumann)  = 0.0320   [OK, batas < 0.5]
+    Difusi termal         = 0.0451   [OK, batas < 0.5]
+    -> 3000 langkah: max|div u| = 2.42e+00, finite = True  ==>  STABIL
+
+==========================================================================
+  BENCHMARK: CPU (Numba) vs GPU (CuPy)
+==========================================================================
+    200x80       16,000    FVM       606.4      224.0    0.37x
+    400x160      64,000    FVM       303.6      265.4    0.87x
+    600x240     144,000    FVM       216.5      223.8    1.03x
+    800x320     256,000    FVM        95.6      189.6    1.98x
+   1000x400     400,000    FVM        60.2      136.6    2.27x
+   1400x560     784,000    FVM        35.8       75.8    2.11x
+--------------------------------------------------------------------------
+  >> GPU mulai MENGUNGGULI CPU di 600x240 (1.03x). Pakai grid >= ini untuk demo GPU>CPU.
+==========================================================================
+```
 
 ## Referensi
 
