@@ -22,15 +22,12 @@
 ![Vorticity Ellipse](results/batch_ellipse_Re240_vorticity.png)
 
 ### Video Simulation (Temperature & Velocity)
-*(GitHub will embed and play the videos automatically)*
 
 **1. Cylinder Temperature (Re=500)**
-
-https://github.com/SandyFauzi/NavierStokes-2D/raw/main/results/cylinder_temperature_Re500.mp4
+![Cylinder Temperature Re500](results/cylinder_temperature_Re500.gif)
 
 **2. Square Velocity (Re=90)**
-
-https://github.com/SandyFauzi/NavierStokes-2D/raw/main/results/square_velocity_Re90.mp4
+![Square Velocity Re90](results/square_velocity_Re90.gif)
 
 ## 2D Vortex Shedding and Heat Distribution Simulation
 
