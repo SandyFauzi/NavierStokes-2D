@@ -35,7 +35,7 @@ def run_positivity_test(method):
             T_max_history.append(float(np.max(T_field)))
             T_min_history.append(float(np.min(T_field)))
             
-    return max_div_history, T_max_history, T_min_history, cfg.dt
+    return max_div_history, T_max_history, T_min_history, solver.dt
 
 def main():
     print("=" * 60)
