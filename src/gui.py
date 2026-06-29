@@ -121,8 +121,6 @@ class MainWindow(QMainWindow):
         self._vort_clim = None
         self._last_render = None
         self._cmap_override = None       # override colormap dari dropdown (None = auto)
-        self._stream_actor = None        # actor streamlines (overlay)
-        self._stream_counter = 0
 
         # pisahkan loop simulasi dan render GUI
         # worker thread simulasi vs timer ui 60 fps
@@ -283,10 +281,9 @@ class MainWindow(QMainWindow):
         self.radio_vort = QRadioButton("Vorticity")
         self.radio_temp = QRadioButton("Temperature")
         self.radio_vel = QRadioButton("Velocity Magnitude")
-        self.radio_stream = QRadioButton("Streamlines (garis aliran)")
         self.radio_vort.setChecked(True)
         self.bg_vis = QButtonGroup()
-        for r in (self.radio_vort, self.radio_temp, self.radio_vel, self.radio_stream):
+        for r in (self.radio_vort, self.radio_temp, self.radio_vel):
             self.bg_vis.addButton(r)
             l5.addWidget(r)
 
@@ -299,12 +296,9 @@ class MainWindow(QMainWindow):
         self.combo_cmap.currentTextChanged.connect(self._on_cmap_changed)
         cmap_row.addWidget(self.combo_cmap)
         l5.addLayout(cmap_row)
-        self.lbl_vis = QLabel("")
-        self.lbl_vis.setWordWrap(True)
-        l5.addWidget(self.lbl_vis)
 
         l_vis.addWidget(grp5)
-        for r in (self.radio_vort, self.radio_temp, self.radio_vel, self.radio_stream):
+        for r in (self.radio_vort, self.radio_temp, self.radio_vel):
             r.toggled.connect(self._on_vis_changed)
 
         grp6 = QGroupBox("Control")
@@ -393,7 +387,6 @@ class MainWindow(QMainWindow):
         self.plotter.set_background(getattr(self, "_plot_bg", "#181825"))
         self.plotter.clear()
         self._grid = self._actor = self._cmap = self._dims = None
-        self._stream_actor = None
         self._update_preview()
 
     def _update_preview(self):
@@ -457,11 +450,6 @@ class MainWindow(QMainWindow):
         else:
             self._grid.cell_data["values"][:] = flat
             self._actor.mapper.scalar_range = clim
-        if getattr(self, "radio_stream", None) is not None and self.radio_stream.isChecked():
-            self._stream_counter += 1
-            # hitung ulang streamline tiap 30 tick saja biar tidak membebani ui
-            if self._stream_actor is None or self._stream_counter % 30 == 0:
-                self._update_streamlines()
         self.plotter.render()
 
         now = time.perf_counter()
@@ -473,7 +461,6 @@ class MainWindow(QMainWindow):
 
     def _rebuild_mesh(self, flat, cmap, title, clim, dims, cfg):
         self.plotter.clear()
-        self._stream_actor = None        # clear() membuang overlay -> reset referensi
         grid = pv.ImageData(dimensions=dims, spacing=(cfg.dx, cfg.dy, 1.0))
         grid.cell_data["values"] = flat
         self._actor = self.plotter.add_mesh(
@@ -496,51 +483,6 @@ class MainWindow(QMainWindow):
         self._grid = None                       # paksa rebuild dengan cmap baru
         if self.solver is not None:
             self._update_pyvista()
-
-    # streamlines (mode tampilan)
-
-    def _remove_streamlines(self):
-        if self._stream_actor is not None:
-            try:
-                self.plotter.remove_actor(self._stream_actor)
-            except Exception:
-                pass
-            self._stream_actor = None
-
-    def _update_streamlines(self):
-        # garis aliran di atas latar kecepatan, kecepatan di-downsample biar ringan
-        if self.solver is None:
-            return
-        self._remove_streamlines()
-        try:
-            cfg = self.solver.cfg
-            ny, nx = cfg.ny, cfg.nx
-            u = backend.to_cpu(self.solver.d.u[1:ny+1, 1:nx+1])
-            u = 0.5 * (u + backend.to_cpu(self.solver.d.u[1:ny+1, 0:nx]))
-            v = backend.to_cpu(self.solver.d.v[1:ny+1, 1:nx+1])
-            v = 0.5 * (v + backend.to_cpu(self.solver.d.v[0:ny, 1:nx+1]))
-            # grid kasar maks 160 sel arah x, integrasi streamline jadi murah
-            stride = max(1, nx // 160)
-            u = np.ascontiguousarray(u[::stride, ::stride])
-            v = np.ascontiguousarray(v[::stride, ::stride])
-            cny, cnx = u.shape
-            sx, sy = cfg.dx * stride, cfg.dy * stride
-            grid = pv.ImageData(dimensions=(cnx, cny, 1), spacing=(sx, sy, 1.0))
-            vec = np.zeros((cnx * cny, 3))
-            vec[:, 0] = u.ravel(order="C")
-            vec[:, 1] = v.ravel(order="C")
-            grid["vectors"] = vec
-            lines = grid.streamlines_evenly_spaced_2D(
-                vectors="vectors", step_length=0.5,
-                separating_distance=2.0, separating_distance_ratio=0.4,
-                start_position=(sx, cfg.Ly * 0.5, 0.0))
-            self._stream_actor = self.plotter.add_mesh(
-                lines, color=getattr(self, "_fg_plot", "white"),
-                line_width=1.2, lighting=False)
-        except Exception as e:
-            self._stream_actor = None
-            self.lbl_vis.setText(f"streamlines tdk didukung: {e}")
-            self.radio_vel.setChecked(True)         # balik ke mode aman
 
     # aksi
 
