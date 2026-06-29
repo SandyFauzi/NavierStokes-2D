@@ -16,9 +16,17 @@
 ## Visual Demonstration
 
 ### Vorticity Characteristics across 4 Geometries
+
+**1. Cylinder (Re=140)**
 ![Vorticity Cylinder](results/batch_cylinder_Re140_vorticity.png)
+
+**2. Square (Re=140)**
 ![Vorticity Square](results/batch_square_Re140_vorticity.png)
+
+**3. Triangle (Re=140)**
 ![Vorticity Triangle](results/batch_triangle_Re140_vorticity.png)
+
+**4. Ellipse (Re=240)**
 ![Vorticity Ellipse](results/batch_ellipse_Re240_vorticity.png)
 
 ### Video Simulation (Temperature & Velocity)

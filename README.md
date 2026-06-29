@@ -16,9 +16,17 @@
 ## Demonstrasi Visual
 
 ### Karakteristik Vorticity pada 4 Geometri
+
+**1. Silinder (Re=140)**
 ![Vorticity Cylinder](results/batch_cylinder_Re140_vorticity.png)
+
+**2. Persegi (Re=140)**
 ![Vorticity Square](results/batch_square_Re140_vorticity.png)
+
+**3. Segitiga (Re=140)**
 ![Vorticity Triangle](results/batch_triangle_Re140_vorticity.png)
+
+**4. Elips (Re=240)**
 ![Vorticity Ellipse](results/batch_ellipse_Re240_vorticity.png)
 
 ### Simulasi Video (Evolusi Suhu & Kecepatan)
