@@ -274,7 +274,12 @@ Menjalankan simulasi FVM...
   [!] FVM MELANGGAR kriteria Positivitas (Maximum Principle).
 ```
 
-*Penjelasan: Pelanggaran batas bawah suhu sebesar -0.0023 ini adalah wiggles numerik akibat penggunaan skema adveksi Central-Upwind Blended. Skema ini sengaja dipertahankan agar fenomena Vortex Shedding tetap tajam dan tidak pudar oleh difusi numerik murni.*
+*Penjelasan Uji Konservasi & Positivitas:*
+Grafik di atas membandingkan stabilitas metode **Finite Volume Method (FVM)** dengan **Finite Difference Method (FDM)** pada grid kasar dengan bilangan Reynolds tinggi (Re=200).
+1. **Uji Konservasi Massa (Divergensi):** Pada grafik atas, FVM berhasil menjaga nilai divergensi agar tetap stabil di batas toleransi *solver* ($\sim 10^0$). Sebaliknya, FDM mengalami ledakan (*divergence blow-up*) seketika di langkah pertama karena tidak mampu menangani ketajaman gradien kecepatan.
+2. **Uji Positivitas Suhu (Maximum Principle):** Pada grafik bawah, batas suhu fisik yang diizinkan adalah 0.0 hingga 1.0.
+   - FDM hancur seketika dan menghasilkan suhu fiktif hingga miliaran derajat.
+   - FVM berhasil mempertahankan profil suhu dalam rentang yang wajar. Pelanggaran batas bawah sebesar -0.0023 (*undershoot*) murni merupakan *numerical wiggles* yang wajar timbul dari penggunaan skema adveksi *Blended Central-Upwind* (orde-2). Skema ini secara sadar dipertahankan untuk mencegah pudarnya fenomena *Vortex Shedding* akibat *numerical diffusion* yang berlebihan jika menggunakan murni skema *Upwind* orde-1.
 
 ![Plot Uji Konservasi](results/test_conservation.png)
 

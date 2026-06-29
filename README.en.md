@@ -274,7 +274,12 @@ Menjalankan simulasi FVM...
   [!] FVM MELANGGAR kriteria Positivitas (Maximum Principle).
 ```
 
-*Explanation: This lower bound violation of -0.0023 is a numerical wiggle resulting from the blended Central-Upwind advection scheme. It is deliberately maintained so that the Vortex Shedding phenomenon remains sharp and is not washed out by pure numerical diffusion.*
+*Conservation & Positivity Test Explanation:*
+The plots above compare the stability of the **Finite Volume Method (FVM)** against the **Finite Difference Method (FDM)** on a coarse grid at a high Reynolds number (Re=200).
+1. **Mass Conservation Test (Divergence):** In the top plots, FVM successfully maintains the divergence value bounded within the solver's tolerance ($\sim 10^0$). In contrast, FDM suffers an immediate divergence blow-up because it cannot handle sharp velocity gradients.
+2. **Temperature Positivity Test (Maximum Principle):** In the bottom plots, the physically allowable temperature range is between 0.0 and 1.0.
+   - FDM instantly crashes and produces fictitious temperatures reaching billions of degrees.
+   - FVM successfully maintains the temperature profile within a reasonable range. The minor violation of -0.0023 (*undershoot*) is an expected numerical wiggle arising from the use of a second-order *Blended Central-Upwind* advection scheme. This scheme is deliberately maintained to prevent the Vortex Shedding phenomenon from being smeared out by excessive numerical diffusion, which would occur if a pure first-order *Upwind* scheme were used.
 
 ![Conservation Test Plot](results/test_conservation.png)
 
