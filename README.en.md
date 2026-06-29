@@ -150,9 +150,9 @@ where $\mathbf{u}$ is velocity, $p$ pressure, $T$ temperature, $\nu$ kinematic v
 
 Each time step uses a fractional-step method on a staggered (MAC) grid:
 
-1. Predict a tentative velocity $\mathbf{u}^*$ from the advection and diffusion terms, ignoring pressure.
+1. Predict a tentative velocity $\mathbf{u}^{\ast}$ from the advection and diffusion terms, ignoring pressure.
 2. Solve the pressure Poisson equation so the final velocity is divergence free.
-3. Correct $\mathbf{u}^*$ with the pressure gradient to get $\mathbf{u}^{n+1}$.
+3. Correct $\mathbf{u}^{\ast}$ with the pressure gradient to get $\mathbf{u}^{n+1}$.
 4. Update the temperature field by advection and diffusion using $\mathbf{u}^{n+1}$.
 
 <details>
@@ -160,15 +160,15 @@ Each time step uses a fractional-step method on a staggered (MAC) grid:
 
 Velocity prediction ($u$ component):
 
-$$u_{i,j}^* = u_{i,j}^n + \Delta t \left[ -\left( u \frac{u_{i+1,j} - u_{i-1,j}}{2\Delta x} + v \frac{u_{i,j+1} - u_{i,j-1}}{2\Delta y} \right) + \nu \left( \frac{u_{i+1,j} - 2u_{i,j} + u_{i-1,j}}{\Delta x^2} + \frac{u_{i,j+1} - 2u_{i,j} + u_{i,j-1}}{\Delta y^2} \right) \right]$$
+$$u_{i,j}^{\ast} = u_{i,j}^n + \Delta t \left[ -\left( u \frac{u_{i+1,j} - u_{i-1,j}}{2\Delta x} + v \frac{u_{i,j+1} - u_{i,j-1}}{2\Delta y} \right) + \nu \left( \frac{u_{i+1,j} - 2u_{i,j} + u_{i-1,j}}{\Delta x^2} + \frac{u_{i,j+1} - 2u_{i,j} + u_{i,j-1}}{\Delta y^2} \right) \right]$$
 
 Pressure Poisson:
 
-$$\frac{p_{i+1,j} - 2p_{i,j} + p_{i-1,j}}{\Delta x^2} + \frac{p_{i,j+1} - 2p_{i,j} + p_{i,j-1}}{\Delta y^2} = \frac{\rho}{\Delta t}\left( \frac{u_{i+1,j}^* - u_{i-1,j}^*}{2\Delta x} + \frac{v_{i,j+1}^* - v_{i,j-1}^*}{2\Delta y} \right)$$
+$$\frac{p_{i+1,j} - 2p_{i,j} + p_{i-1,j}}{\Delta x^2} + \frac{p_{i,j+1} - 2p_{i,j} + p_{i,j-1}}{\Delta y^2} = \frac{\rho}{\Delta t}\left( \frac{u_{i+1,j}^{\ast} - u_{i-1,j}^{\ast}}{2\Delta x} + \frac{v_{i,j+1}^{\ast} - v_{i,j-1}^{\ast}}{2\Delta y} \right)$$
 
 Velocity correction:
 
-$$u_{i,j}^{n+1} = u_{i,j}^* - \frac{\Delta t}{\rho}\frac{p_{i+1,j} - p_{i-1,j}}{2\Delta x}$$
+$$u_{i,j}^{n+1} = u_{i,j}^{\ast} - \frac{\Delta t}{\rho}\frac{p_{i+1,j} - p_{i-1,j}}{2\Delta x}$$
 
 </details>
 
