@@ -26,8 +26,8 @@
 **1. Cylinder Temperature (Re=500)**
 ![Cylinder Temperature Re500](results/cylinder_temperature_Re500.gif)
 
-**2. Square Velocity (Re=90)**
-![Square Velocity Re90](results/square_velocity_Re90.gif)
+**2. Cylinder Temperature (Re=90)**
+![Cylinder Temperature Re90](results/cylinder_temperature_Re90.gif)
 
 ## 2D Vortex Shedding and Heat Distribution Simulation
 
