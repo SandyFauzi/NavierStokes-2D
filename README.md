@@ -15,15 +15,22 @@
 
 ## Demonstrasi Visual
 
-### Vorticity pada Berbagai Geometri
-![Vorticity Batch](results/batch_cylinder_Re140_vorticity.png)
+### Karakteristik Vorticity pada 4 Geometri Wajib
+![Vorticity Cylinder](results/batch_cylinder_Re140_vorticity.png)
+![Vorticity Square](results/batch_square_Re140_vorticity.png)
+![Vorticity Triangle](results/batch_triangle_Re140_vorticity.png)
+![Vorticity Ellipse](results/batch_ellipse_Re240_vorticity.png)
 
 ### Simulasi Video (Evolusi Suhu & Kecepatan)
-**Cylinder Temperature (Re=500)**
-<video src="https://github.com/SandyFauzi/NavierStokes-2D/raw/main/results/cylinder_temperature_Re500.mp4" controls width="100%"></video>
+*(GitHub akan memutar video secara otomatis)*
 
-**Square Velocity (Re=90)**
-<video src="https://github.com/SandyFauzi/NavierStokes-2D/raw/main/results/square_velocity_Re90.mp4" controls width="100%"></video>
+**1. Cylinder Temperature (Re=500)**
+
+https://github.com/SandyFauzi/NavierStokes-2D/raw/main/results/cylinder_temperature_Re500.mp4
+
+**2. Square Velocity (Re=90)**
+
+https://github.com/SandyFauzi/NavierStokes-2D/raw/main/results/square_velocity_Re90.mp4
 
 ## Simulasi Vortex Shedding dan Distribusi Panas 2D
 
@@ -38,7 +45,7 @@ Simulasi berjalan lewat aplikasi desktop. Pengguna mengatur parameter di panel k
 | Dua metode | FDM (central difference) dan FVM (blended central/upwind), dipilih dari GUI |
 | Dua backend | CPU (Numba) dan GPU (CuPy), dipilih saat program berjalan |
 | Geometri penghalang | silinder, elips, persegi, belah ketupat, segi enam, segitiga, pelat; ukuran dan sudut orientasi dapat diatur |
-| Medan tampilan | vorticity, suhu, velocity magnitude, dan streamlines |
+| Medan tampilan | vorticity, suhu, dan velocity magnitude |
 | Colormap | beberapa colormap yang bisa diganti saat simulasi berjalan |
 | Tema antarmuka | mode gelap dan terang |
 | Metrik fisika | koefisien drag (CD), lift (CL), bilangan Strouhal, bilangan Nusselt, divergensi kecepatan, residual Poisson, langkah per detik |
@@ -251,6 +258,22 @@ Contoh output pengujian stabilitas numerik dan benchmark CPU vs GPU:
     Difusi (von Neumann)  = 0.0320   [OK, batas < 0.5]
     Difusi termal         = 0.0451   [OK, batas < 0.5]
     -> 3000 langkah: max|div u| = 2.42e+00, finite = True  ==>  STABIL
+
+================================================================
+  UJI KONSERVASI MASSA & POSITIVITAS SUHU
+================================================================
+Menjalankan simulasi FVM...
+  FVM - Max Divergence: 8.50e+00
+  FVM - Suhu Terendah : -0.0023 (Seharusnya >= 0.0)
+  FVM - Suhu Tertinggi: 1.0000 (Seharusnya <= 1.0)
+  [!] FVM MELANGGAR kriteria Positivitas (Maximum Principle).
+
+================================================================
+  VALIDASI ANALITIK POISEUILLE
+================================================================
+  L2 Error Kecepatan terhadap solusi analitik Poiseuille:
+  FVM : 1.25e-04 (Lulus Uji)
+  FDM : 1.18e-04 (Lulus Uji)
 
 ==========================================================================
   BENCHMARK: CPU (Numba) vs GPU (CuPy)
