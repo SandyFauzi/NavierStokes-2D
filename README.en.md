@@ -107,6 +107,7 @@ NavierStokes-2D/
 │   ├── validate_poiseuille.py # check against the analytic Poiseuille solution
 │   ├── test_conservation.py      # mass conservation and temperature positivity
 │   ├── test_convergence.py     # grid convergence (order of accuracy)
+│   ├── test_nusselt.py        # Nusselt number and drag coefficient measurements
 │   └── test_stability.py      # Courant and Fourier numbers
 └── utils/                  # output production tools
     ├── batch_plot.py          # automatic PNG export for several geometries
@@ -251,10 +252,13 @@ Scripts in the `tests/` folder:
 - `benchmark.py` measures throughput (steps per second, MLUPS) for CPU and GPU across several grid sizes.
 - `test_nusselt.py` measures the average Nusselt Number ($Nu$) and Drag Coefficient ($C_D$) per geometry.
 
-### Quantitative Validation & Grid Convergence (Literature Benchmark)
-This program does more than just visual simulations; it has been validated as a quantitative CFD benchmark:
-- **Literature Validation (Cylinder Re=140):** Literature notes $C_D \approx 1.3 - 1.4$ and $St \approx 0.18 - 0.2$ for a cylinder. This simulation yields $St = 0.225$ (very close to theoretical) and $C_D \approx 1.7$. The difference in absolute values for $C_D$ and $Nu$ is expected because the simulation uses a narrow *blockage ratio* ($D/L_y = 0.25$), *freeslip* walls, and a 2nd-order FVM blending (`adv_blend=0.8`).
-- **Grid Convergence:** The measurements in `test_nusselt.py` use a $360\times120$ grid. While this is sufficient to capture heat transfer trends (square being the highest, ellipse the lowest), obtaining absolute $Nu$ values that perfectly match literature might require a grid convergence study with significantly higher resolution and a domain without blockage.
+### Literature Validation
+
+The solver's accuracy was tested against standard cylinder benchmarks at Re=140. The simulation produces a Strouhal number ($St$) of $0.225$, close to the accepted range of $0.18 - 0.2$.
+
+The drag coefficient ($C_D$) measures at $1.7$, which is higher than the literature baseline of $1.3 - 1.4$. This deviation comes from the narrow channel geometry (a $0.25$ blockage ratio) and the freeslip wall boundaries.
+
+For heat transfer metrics, the $360\times120$ grid is dense enough to rank the thermal performance of different shapes (square provides the highest $Nu$, followed by the cylinder). Extracting absolute $Nu$ values that match free-stream empirical data would require a larger domain and further grid refinement.
 
 ### Test Results
 

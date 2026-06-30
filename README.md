@@ -107,6 +107,7 @@ NavierStokes-2D/
 │   ├── validate_poiseuille.py # uji terhadap solusi analitik Poiseuille
 │   ├── test_conservation.py      # kekekalan massa dan positivitas suhu
 │   ├── test_convergence.py     # konvergensi grid (orde akurasi)
+│   ├── test_nusselt.py        # uji bilangan Nusselt dan koefisien hambatan
 │   └── test_stability.py      # bilangan Courant dan Fourier
 └── utils/                  # alat bantu produksi output
     ├── batch_plot.py          # ekspor PNG otomatis untuk beberapa geometri
@@ -251,10 +252,13 @@ Skrip di folder `tests/`:
 - `benchmark.py` mengukur throughput (langkah/detik, MLUPS) CPU dan GPU pada beberapa ukuran grid.
 - `test_nusselt.py` mengukur rata-rata Bilangan Nusselt ($Nu$) dan Koefisien Drag ($C_D$) per geometri.
 
-### Validasi Kuantitatif & Konvergensi Grid (Literature Benchmark)
-Program ini tidak sekadar menghasilkan simulasi visual, melainkan telah divalidasi sebagai *benchmark* kuantitatif CFD:
-- **Validasi Literatur (Silinder Re=140):** Literatur mencatat $C_D \approx 1.3 - 1.4$ dan $St \approx 0.18 - 0.2$ untuk silinder. Simulasi ini memberikan $St = 0.225$ (sangat dekat dengan teoretis) dan $C_D \approx 1.7$. Perbedaan nilai absolut $C_D$ dan $Nu$ wajar terjadi karena simulasi menggunakan *blockage ratio* sempit ($D/L_y = 0.25$), kondisi dinding *freeslip*, dan *blending* FVM orde-2 (`adv_blend=0.8`).
-- **Konvergensi Grid:** Pengukuran pada `test_nusselt.py` menggunakan grid $360\times120$. Meskipun grid ini cukup untuk menangkap tren perpindahan panas (persegi paling tinggi, elips paling rendah), simulasi $Nu$ absolut yang mutlak persis literatur mungkin membutuhkan studi konvergensi grid dengan resolusi yang jauh lebih rapat dan domain tanpa *blockage*.
+### Validasi terhadap Literatur
+
+Simulasi ini diukur akurasinya menggunakan kasus silinder pada Re=140. Hasil pengujian menunjukkan angka Strouhal ($St$) $0.225$, mendekati referensi standar ($0.18 - 0.2$). 
+
+Nilai koefisien hambatan ($C_D$) tercatat di angka $1.7$, lebih tinggi dari literatur ($1.3 - 1.4$). Selisih ini muncul akibat efek penyempitan dinding (*blockage ratio* $0.25$) dan batas *freeslip* pada domain.
+
+Untuk pengukuran perpindahan panas (Nusselt, $Nu$), grid $360\times120$ sudah memadai untuk membandingkan urutan performa antar geometri (persegi mencatat $Nu$ tertinggi, disusul silinder). Namun, memverifikasi nilai absolut $Nu$ membutuhkan domain bebas batas dan studi konvergensi grid lanjutan.
 
 ### Hasil Pengujian (Test Results)
 
