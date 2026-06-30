@@ -50,23 +50,34 @@ def measure(shape, angle, Re):
 
 
 def main():
-    print("=" * 56)
-    print("  Nu RATA-RATA per geometri  (D=3, grid 360x120, FVM)")
+    print("=" * 76)
+    print("  Nu & CD RATA-RATA per geometri  (D=3, grid 360x120, FVM)")
     print(f"  warmup={WARMUP}  ukur={MEASURE} langkah")
-    print("=" * 56)
-    print(f"  {'Bentuk':10} {'Re':>4}  {'Nu_avg':>8}  {'CD_avg':>8}")
+    print("  Catatan: Nilai Nu/CD dipengaruhi oleh efek blockage ratio (D/Ly=0.25),")
+    print("  boundary freeslip, dan skema adv_blend=0.8. Grid-convergence untuk Nu")
+    print("  mungkin memerlukan resolusi lebih tinggi untuk presisi mutlak.")
+    print("=" * 76)
+    print(f"  {'Bentuk':10} {'Re':>4}  {'Nu_avg':>8}  {'CD_avg':>8} | {'Validasi Literatur (Silinder)'}")
     rows = []
     for shape, angle, Re in CASES:
         print(f"  [{shape}] jalan ...", flush=True)
         Nu, CD = measure(shape, angle, Re)
         rows.append((shape, Re, Nu, CD))
-        print(f"  {shape:10} {Re:>4}  {Nu:8.3f}  {CD:8.3f}", flush=True)
-    print("=" * 56)
+        
+        lit_note = ""
+        if shape == "cylinder":
+            # Literature approx for cylinder Re=140: CD ~1.3-1.4, St ~0.18-0.2
+            # Nu is highly dependent on blockage; free-stream Nu ~ 6.0 (Hilpert)
+            # Our CD is higher (~1.7) due to blockage and freeslip walls.
+            lit_note = " (Lit Re=140: CD≈1.3-1.4. Beda krn blockage 25%)"
+            
+        print(f"  {shape:10} {Re:>4}  {Nu:8.3f}  {CD:8.3f} |{lit_note}", flush=True)
+        
+    print("=" * 76)
     print("  RINGKASAN (urut Nu):")
     for shape, Re, Nu, CD in sorted(rows, key=lambda r: -r[2]):
         print(f"    {shape:10} Re={Re:<4}  Nu={Nu:7.3f}  CD={CD:7.3f}")
-    print("=" * 56)
-
+    print("=" * 76)
 
 if __name__ == "__main__":
     main()

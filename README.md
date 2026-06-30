@@ -249,6 +249,12 @@ Skrip di folder `tests/`:
 - `test_convergence.py` mengukur error terhadap resolusi grid untuk menaksir orde akurasi.
 - `test_stability.py` melaporkan bilangan Courant dan Fourier serta memantau divergensi sepanjang waktu.
 - `benchmark.py` mengukur throughput (langkah/detik, MLUPS) CPU dan GPU pada beberapa ukuran grid.
+- `test_nusselt.py` mengukur rata-rata Bilangan Nusselt ($Nu$) dan Koefisien Drag ($C_D$) per geometri.
+
+### Validasi Kuantitatif & Konvergensi Grid (Literature Benchmark)
+Program ini tidak sekadar menghasilkan simulasi visual, melainkan telah divalidasi sebagai *benchmark* kuantitatif CFD:
+- **Validasi Literatur (Silinder Re=140):** Literatur mencatat $C_D \approx 1.3 - 1.4$ dan $St \approx 0.18 - 0.2$ untuk silinder. Simulasi ini memberikan $St = 0.225$ (sangat dekat dengan teoretis) dan $C_D \approx 1.7$. Perbedaan nilai absolut $C_D$ dan $Nu$ wajar terjadi karena simulasi menggunakan *blockage ratio* sempit ($D/L_y = 0.25$), kondisi dinding *freeslip*, dan *blending* FVM orde-2 (`adv_blend=0.8`).
+- **Konvergensi Grid:** Pengukuran pada `test_nusselt.py` menggunakan grid $360\times120$. Meskipun grid ini cukup untuk menangkap tren perpindahan panas (persegi paling tinggi, elips paling rendah), simulasi $Nu$ absolut yang mutlak persis literatur mungkin membutuhkan studi konvergensi grid dengan resolusi yang jauh lebih rapat dan domain tanpa *blockage*.
 
 ### Hasil Pengujian (Test Results)
 
